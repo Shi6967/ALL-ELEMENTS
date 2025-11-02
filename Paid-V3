@@ -2,7 +2,7 @@
 -- Loads the UI library from the provided URL and demonstrates every element.
 -- Place this as a LocalScript (StarterPlayerScripts) or execute in a local environment.
 
-local LIB_URL = "https://raw.githubusercontent.com/Shi6967/SpeedShi/refs/heads/main/SaiLyn",true))()"
+local LIB_URL = "https://raw.githubusercontent.com/IzaCantPunch/LuxCyra/refs/heads/main/H"
 
 -- Attempt to load the remote library
 local ok, a, b, c = pcall(function()
@@ -29,7 +29,7 @@ end
 
 -- Create the main window
 local Window = Library:CreateWindow({
-	Title = "SaiLynxShi UI Library",
+	Title = "Sen UI Library",
 	SubTitle = "Version 1.0.0",
 	Size = UDim2.fromOffset(500, 335),
 	TabWidth = 150,
