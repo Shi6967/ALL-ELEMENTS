@@ -785,6 +785,8 @@ toolsSection:AddToggle("FastToolsToggle", {
     end,
 })
 
+local toolSection = toolsTab:AddFolder("Rock Farming")
+
 local function gettool()
     for i, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
         if v.Name == "Punch" and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
