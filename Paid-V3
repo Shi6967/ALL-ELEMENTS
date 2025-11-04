@@ -4,9 +4,7 @@
 
 local LIB_URL = "https://raw.githubusercontent.com/Shi6967/Ad-Link/refs/heads/main/Link"
 
--- Attempt to load the remote library
 local ok, a, b, c = pcall(function()
-	-- game:HttpGet may require HttpEnabled in Studio; use what the environment supports
 	local source = game:HttpGet(LIB_URL)
 	local fn = loadstring(source)
 	return fn()
@@ -15,10 +13,8 @@ end)
 local Library, SaveManager, InterfaceManager
 
 if ok then
-	-- pcall returned true followed by values returned by the module
 	Library, SaveManager, InterfaceManager = a, b, c
 else
-	-- Fallback: try getgenv if module was already loaded there
 	if getgenv and getgenv().Fluent then
 		Library = getgenv().Fluent
 		warn("Loaded library from getgenv().Fluent as fallback.")
@@ -27,169 +23,136 @@ else
 	end
 end
 
--- Create the main window
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local LocalPlayer = Players.LocalPlayer
+
+local PET_NAME = "Swift Samurai"
+local ROCK_NAME = "Rock5M"
+local PROTEIN_EGG_NAME = "ProteinEgg"
+local PROTEIN_EGG_INTERVAL = 30 * 60
+local REPS_PER_CYCLE = 180
+local REP_DELAY = 0.003
+local ROCK_INTERVAL = 1
+local MAX_PING = 1100
+
+local HumanoidRootPart
+local lastProteinEggTime = 0
+local lastRockTime = 0
+local RockRef = workspace:FindFirstChild(ROCK_NAME)
+
+local function getPing()
+	local success, ping = pcall(function()
+		return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+	end)
+	return success and ping or 999
+end
+
+local function updateCharacterRefs()
+	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	HumanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+end
+
+local function equipPet()
+	local petsFolder = LocalPlayer:FindFirstChild("petsFolder")
+	if petsFolder and petsFolder:FindFirstChild("Unique") then
+		for _, pet in pairs(petsFolder.Unique:GetChildren()) do
+			if pet.Name == PET_NAME then
+				ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+				break
+			end
+		end
+	end
+end
+
+local function eatProteinEgg()
+	if LocalPlayer:FindFirstChild("Backpack") then
+		for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+			if item.Name == PROTEIN_EGG_NAME then
+				ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
+				break
+			end
+		end
+	end
+end
+
+local function hitRock()
+	if not RockRef or not RockRef.Parent then
+		RockRef = workspace:FindFirstChild(ROCK_NAME)
+	end
+	if RockRef and HumanoidRootPart then
+		HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
+		ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
+	end
+end
+
+if not getgenv()._AutoRepFarmLoop then
+    getgenv()._AutoRepFarmLoop = true
+
+    task.spawn(function()
+        updateCharacterRefs()
+        equipPet()
+        lastProteinEggTime = tick()
+        lastRockTime = tick()
+
+        while true do
+            if getgenv()._AutoRepFarmEnabled then
+                local ping = getPing()
+                if ping > MAX_PING then
+                    warn("[Auto Rep Farm] Ping alto ("..math.floor(ping).."ms), pausing for 5s...")
+                    task.wait(5)
+                else
+                    if LocalPlayer:FindFirstChild("muscleEvent") then
+                        for i = 1, REPS_PER_CYCLE do
+                            LocalPlayer.muscleEvent:FireServer("rep")
+                            task.wait(REP_DELAY)
+                        end
+                    end
+                    
+                    if tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
+                        eatProteinEgg()
+                        lastProteinEggTime = tick()
+                    end
+
+                    if tick() - lastRockTime >= ROCK_INTERVAL then
+                        hitRock()
+                        lastRockTime = tick()
+                    end
+                    
+                end
+            else
+                task.wait(1)
+            end
+        end
+    end)
+end
+
 local Window = Library:CreateWindow({
-	Title = "SAILYNxSHI UI Library",
-	SubTitle = "Version 1.0.0",
+	Title = "SAILYNxSHI AutoFarm",
+	SubTitle = "Strength Grinder",
 	Size = UDim2.fromOffset(500, 335),
 	TabWidth = 150,
 	Theme = "SpeedHubX",
 	Acrylic = false,
 })
 
--- Create demo tab + section
-local demoTab = Window:AddTab({ Title = "All Elements", Icon = "settings" })
-local demoSection = demoTab:AddSection("Controls")
+local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "flame" })
+local farmSection = autoFarmTab:AddSection("Fuerza OP")
 
--- BUTTON: simple click button
-demoSection:AddButton({
-	Title = "Show Notification",
-	Description = "Opens a sample notification.",
-	Callback = function()
-		Library:Notify({
-			Title = "Hello!",
-			Content = "This notification comes from the remote-loaded library.",
-			SubContent = "Duration: 4s",
-			Duration = 4,
-		})
+farmSection:AddToggle("OP_STRENGTH_TOGGLE", {
+	Title = "OP STRENGTH",
+	Description = "Activates the strength auto-farm. (OP Strength)",
+	Default = false,
+	Callback = function(state)
+		getgenv()._AutoRepFarmEnabled = state
+		warn("[Auto Rep Farm] Status changed to:", state and "ON" or "OFF")
 	end,
 })
 
--- TOGGLE
-demoSection:AddToggle("Demo_Toggle", {
-	Title = "Demo Toggle",
-	Default = true,
-	Description = "A simple toggle you can save/load.",
-	Callback = function(value)
-		print("[Demo_Toggle] Value:", value)
-	end,
-})
-
--- DROPDOWN (single-select)
-demoSection:AddDropdown("Demo_Dropdown", {
-	Title = "Demo Dropdown",
-	Description = "Pick a value.",
-	Values = { "Alpha", "Beta", "Gamma", "Delta" },
-	Default = "Beta",
-	Callback = function(value)
-		print("[Demo_Dropdown] Selected:", value)
-	end,
-})
-
--- PARAGRAPH
-demoSection:AddParagraph({
-	Title = "About this demo",
-	Content = "This section demonstrates each UI element supported by the library loaded from the provided URL. Use the Settings tab to save and load configurations.",
-})
-
--- SLIDER
-demoSection:AddSlider("Demo_Slider", {
-	Title = "Demo Slider",
-	Description = "Adjust a numeric value.",
-	Min = 0,
-	Max = 100,
-	Default = 50,
-	Rounding = 0,
-	Callback = function(value)
-		print("[Demo_Slider] Value:", value)
-	end,
-})
-
--- KEYBIND
-demoSection:AddKeybind("Demo_Keybind", {
-	Title = "Demo Keybind (Toggle M)",
-	Default = "M",
-	Mode = "Toggle",
-	Callback = function(toggled)
-		print("[Demo_Keybind] Toggled:", toggled)
-		Window:Minimize()
-	end,
-})
-
--- COLORPICKER
-demoSection:AddColorpicker("Demo_Color", {
-	Title = "Demo Colorpicker",
-	Description = "Choose an accent color.",
-	Default = Color3.fromRGB(0, 120, 255),
-	Transparency = 0,
-	Callback = function(color)
-		print("[Demo_Color] Color chosen:", color)
-		-- Optional: perform actions with chosen color
-	end,
-})
-
--- INPUT
-demoSection:AddInput("Demo_Input", {
-	Title = "Demo Input",
-	Default = "",
-	Placeholder = "Type something here",
-	Callback = function(text)
-		print("[Demo_Input] Text:", text)
-	end,
-})
-
--- DIALOGS & EXTRAS SECTION
-local dialogSection = demoTab:AddSection("Dialogs & Extras")
-
-dialogSection:AddButton({
-	Title = "Open Dialog",
-	Description = "Shows a dialog with Yes/No.",
-	Callback = function()
-		Window:Dialog({
-			Title = "Confirm action",
-			Content = "Do you want to proceed with the demo action?",
-			Buttons = {
-				{
-					Title = "Yes",
-					Callback = function()
-						Library:Notify({
-							Title = "Confirmed",
-							Content = "You clicked Yes.",
-							Duration = 3,
-						})
-					end,
-				},
-				{ Title = "No" },
-			},
-		})
-	end,
-})
-
-dialogSection:AddButton({
-	Title = "Create sample notification",
-	Callback = function()
-		Library:Notify({
-			Title = "Sample",
-			Content = "This notification was created from an example that loads the library remotely.",
-			Duration = 6,
-		})
-	end,
-})
-
--- SETTINGS TAB: Persistence and Interface controls
-local settingsTab = Window:AddTab({ Title = "Settings", Icon = "file" })
-
-if InterfaceManager then
-	InterfaceManager:SetLibrary(Library)
-	InterfaceManager:SetFolder("ExampleUI_Settings")
-	InterfaceManager:BuildInterfaceSection(settingsTab)
-else
-	warn("InterfaceManager not available from the remote library; interface settings UI skipped.")
-end
-
-if SaveManager then
-	SaveManager:SetLibrary(Library)
-	SaveManager:SetFolder("ExampleUI_Configs")
-	SaveManager:BuildConfigSection(settingsTab)
-	SaveManager:LoadAutoloadConfig()
-else
-	warn("SaveManager not available from the remote library; config UI skipped.")
-end
-
--- Show a startup notification and select the demo tab
 Library:Notify({
-	Title = "Fluent UI Demo",
-	Content = "Demo loaded from URL. Try toggles, dropdowns, sliders, keybinds, color pickers and save/load in Settings if available.",
+	Title = "AutoFarm Loaded",
+	Content = "Strength Grinder UI is ready. Activate 'OP STRENGTH' to start.",
 	Duration = 6,
 })
 
