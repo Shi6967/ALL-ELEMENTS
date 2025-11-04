@@ -33,10 +33,10 @@ local PET_NAME = "Swift Samurai"
 local ROCK_NAME = "Rock5M"
 local PROTEIN_EGG_NAME = "ProteinEgg"
 local PROTEIN_EGG_INTERVAL = 30 * 60 
-local REPS_PER_CYCLE = 180
-local REP_DELAY = 0.003
-local ROCK_INTERVAL = 1
-local MAX_PING = 1100
+local REPS_PER_CYCLE = 160 
+local REP_DELAY = 0.01 
+local ROCK_INTERVAL = 5 
+local MAX_PING = 700 
 
 local HumanoidRootPart
 local lastProteinEggTime = 0
@@ -57,16 +57,14 @@ local function updateCharacterRefs()
 	HumanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
 end
 
-local function eatProteinEggNew()
-    local backpack = LocalPlayer:WaitForChild("Backpack")
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-
-    local egg = backpack:FindFirstChild("Protein Egg")
-    if egg then
-        egg.Parent = character
-        pcall(function()
-            egg:Activate()
-        end)
+local function eatProteinEgg()
+    if LocalPlayer:FindFirstChild("Backpack") then
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if item.Name == PROTEIN_EGG_NAME then
+                ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
+                break
+            end
+        end
     end
 end
 
@@ -113,12 +111,24 @@ local function getStrengthRequiredForRebirth(c)
     return math.floor(baseStrength)
 end
 
+local function hitRock()
+    if not RockRef or not RockRef.Parent then
+        RockRef = workspace:FindFirstChild(ROCK_NAME)
+    end
+    if RockRef and HumanoidRootPart then
+        HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
+        ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
+    end
+end
 
 if not getgenv()._AutoRepFarmLoop then
     getgenv()._AutoRepFarmLoop = true
 
     task.spawn(function()
         updateCharacterRefs()
+        
+        lastProteinEggTime = tick()
+        lastRockTime = tick()
         
         while true do
             if getgenv()._AutoRepFarmEnabled then
@@ -130,24 +140,18 @@ if not getgenv()._AutoRepFarmLoop then
                     if LocalPlayer:FindFirstChild("muscleEvent") then
                         for i = 1, REPS_PER_CYCLE do
                             LocalPlayer.muscleEvent:FireServer("rep")
-                            task.wait(REP_DELAY)
+                            task.wait(REP_DELAY) 
                         end
-                    end
-                    
-                    if tick() - lastRockTime >= ROCK_INTERVAL then
-                        if not RockRef or not RockRef.Parent then
-                            RockRef = workspace:FindFirstChild(ROCK_NAME)
-                        end
-                        if RockRef and HumanoidRootPart then
-                            HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
-                            ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
-                        end
-                        lastRockTime = tick()
                     end
                     
                     if not autoEatEnabled and tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
-                        eatProteinEggNew()
+                        eatProteinEgg()
                         lastProteinEggTime = tick()
+                    end
+
+                    if tick() - lastRockTime >= ROCK_INTERVAL then
+                        hitRock()
+                        lastRockTime = tick()
                     end
                 end
             else
@@ -160,7 +164,7 @@ end
 task.spawn(function()
     while true do
         if autoEatEnabled then
-            eatProteinEggNew()
+            eatProteinEgg()
             task.wait(1800)
         else
             task.wait(1)
@@ -176,7 +180,6 @@ local Window = Library:CreateWindow({
 	Theme = "SpeedHubX",
 	Acrylic = false,
 })
-
 
 local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "flame" })
 local farmSection = autoFarmTab:AddSection("Farm OP")
@@ -633,8 +636,8 @@ rebirthSection:AddButton({
 	end,
 })
 
-
 local toolsTab = Window:AddTab({ Title = "Tools", Icon = "gear" })
+
 toolsTab:AddLabel({Title = "Farm Whiteout Packs"}) 
 
 local autoEquipToolsFolder = toolsTab:AddSection("Auto Tools") 
@@ -707,7 +710,7 @@ autoEquipToolsFolder:AddToggle("AutoPunchToggle", {
         _G.fastHitActive = Value
         local character = LocalPlayer.Character
         local backpack = LocalPlayer.Backpack
-        
+
         if Value then
             task.spawn(function()
                 while _G.fastHitActive do
@@ -784,7 +787,6 @@ autoEquipToolsFolder:AddToggle("FastToolsToggle", {
         end
     end,
 })
-
 
 Library:Notify({
 	Title = "AutoFarm Finalized",
