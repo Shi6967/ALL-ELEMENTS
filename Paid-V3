@@ -842,9 +842,9 @@ createRockFarmSwitch("Legend Gym Rock", 1000000)
 createRockFarmSwitch("Muscle King Gym Rock", 5000000)
 createRockFarmSwitch("Ancient Jungle Rock", 10000000)
 
-local killerTab = Window:AddTab({ Title = "Killer", Icon = "punch" })
+local KillerTab = Window:AddTab({ Title = "Killer", Icon = "punch" })
 
-local killerSection = killerTab:AddSection("Rebirths")
+local KillerSection = KillerTab:AddSection("Kills")
 
 local Killer = window:AddTab("Kills")
 
