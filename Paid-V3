@@ -1,6 +1,5 @@
 -- Example_AllElements_FromURL.lua
 -- Loads the UI library from the provided URL and demonstrates every element.
--- Place this as a LocalScript (StarterPlayerScripts) or execute in a local environment.
 
 local LIB_URL = "https://raw.githubusercontent.com/Shi6967/Ad-Link/refs/heads/main/Link"
 local ok, a, b, c = pcall(function()
@@ -21,19 +20,605 @@ else
 	end
 end
 
+-- --- Custom Global and Utility Variables ---
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
+
+local AntiAfk_UI_Name = "AntiAfk_UI_Container"
+getgenv().AntiAfkExecuted = false
+getgenv().zamanbaslaticisi = false
+getgenv().AutoFarming = false
+getgenv()._AutoRepFarmEnabled = false
+_G.AutoSpinWheel = false
+
+-- ====================================================================
+-- ||                     ANTI-AFK FUNCTIONS                         ||
+-- ====================================================================
+
+local function DestroyAntiAfkUI()
+    getgenv().AntiAfkExecuted = false
+    getgenv().zamanbaslaticisi = false
+    local container = CoreGui:FindFirstChild(AntiAfk_UI_Name)
+    if container then
+        container:Destroy()
+    end
+end
+
+local function CreateAntiAfkUI()
+    getgenv().AntiAfkExecuted = true
+    getgenv().zamanbaslaticisi = true
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = AntiAfk_UI_Name
+    ScreenGui.DisplayOrder = 999
+    ScreenGui.Parent = CoreGui
+
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "AntiAfkFrame"
+    MainFrame.Parent = ScreenGui
+    MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    MainFrame.Position = UDim2.new(0.085, 0, 0.13, 0)
+    MainFrame.Size = UDim2.new(0, 225, 0, 96)
+
+    local Corner = Instance.new("UICorner", MainFrame)
+    Corner.CornerRadius = UDim.new(0, 5)
+
+    local LineFrame = Instance.new("Frame", MainFrame)
+    LineFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    LineFrame.Position = UDim2.new(0.004, 0, 0.24, 0)
+    LineFrame.Size = UDim2.new(0, 224, 0, 5)
+    Instance.new("UICorner", LineFrame).CornerRadius = UDim.new(0, 50)
+
+    -- UI Labels Setup
+    local TitleLabel = Instance.new("TextLabel", MainFrame)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Position = UDim2.new(0.3, 0, 0, 0)
+    TitleLabel.Size = UDim2.new(0, 95, 0, 24)
+    TitleLabel.Font = Enum.Font.SourceSans
+    TitleLabel.Text = "Anti Afk Script"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 14
+
+    local StatusLabel = Instance.new("TextLabel", MainFrame)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Position = UDim2.new(0.05, 0, 0.81, 0)
+    StatusLabel.Size = UDim2.new(0, 150, 0, 12)
+    StatusLabel.Font = Enum.Font.SourceSans
+    StatusLabel.Text = "Anti-Afk Auto Enabled"
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    StatusLabel.TextSize = 14
+
+    local PingStaticLabel = Instance.new("TextLabel", MainFrame)
+    PingStaticLabel.BackgroundTransparency = 1
+    PingStaticLabel.Position = UDim2.new(0.03, 0, 0.37, 0)
+    PingStaticLabel.Size = UDim2.new(0, 29, 0, 24)
+    PingStaticLabel.Font = Enum.Font.SourceSans
+    PingStaticLabel.Text = "Ping: "
+    PingStaticLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PingStaticLabel.TextSize = 14
+
+    local PingValueLabel = Instance.new("TextLabel", MainFrame)
+    PingValueLabel.Name = "pinglabel"
+    PingValueLabel.BackgroundTransparency = 1
+    PingValueLabel.Position = UDim2.new(0.2, 0, 0.37, 0)
+    PingValueLabel.Size = UDim2.new(0, 55, 0, 24)
+    PingValueLabel.Font = Enum.Font.SourceSans
+    PingValueLabel.Text = "0"
+    PingValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PingValueLabel.TextSize = 14
+    
+    local FPSStaticLabel = Instance.new("TextLabel", MainFrame)
+    FPSStaticLabel.BackgroundTransparency = 1
+    FPSStaticLabel.Position = UDim2.new(0.5, 0, 0.35, 0)
+    FPSStaticLabel.Size = UDim2.new(0, 26, 0, 24)
+    FPSStaticLabel.Font = Enum.Font.SourceSans
+    FPSStaticLabel.Text = "Fps: "
+    FPSStaticLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FPSStaticLabel.TextSize = 14
+
+    local FPSValueLabel = Instance.new("TextLabel", MainFrame)
+    FPSValueLabel.Name = "fpslabel"
+    FPSValueLabel.BackgroundTransparency = 1
+    FPSValueLabel.Position = UDim2.new(0.72, 0, 0.35, 0)
+    FPSValueLabel.Size = UDim2.new(0, 55, 0, 24)
+    FPSValueLabel.Font = Enum.Font.SourceSans
+    FPSValueLabel.Text = "0"
+    FPSValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    FPSValueLabel.TextSize = 14
+    
+    local TimerLabel = Instance.new("TextLabel", MainFrame)
+    TimerLabel.Name = "timerlabel"
+    TimerLabel.BackgroundTransparency = 1
+    TimerLabel.Position = UDim2.new(0.65, 0, 0.68, 0)
+    TimerLabel.Size = UDim2.new(0, 60, 0, 24)
+    TimerLabel.Font = Enum.Font.SourceSans
+    TimerLabel.Text = "0:0:0"
+    TimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TimerLabel.TextSize = 14
+
+    local DestroyBtn = Instance.new("TextButton", MainFrame)
+    DestroyBtn.Name = "DestroyButton"
+    DestroyBtn.BackgroundTransparency = 1
+    DestroyBtn.Position = UDim2.new(0.87, 0, 0.02, 0)
+    DestroyBtn.Size = UDim2.new(0, 27, 0, 15)
+    DestroyBtn.Font = Enum.Font.SourceSans
+    DestroyBtn.Text = "X"
+    DestroyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DestroyBtn.TextSize = 14
+    DestroyBtn.MouseButton1Click:Connect(DestroyAntiAfkUI)
+
+    -- Draggable UI Logic
+    local dragging, dragInput, dragStart, startPos
+    local function update(input)
+        local delta = input.Position - dragStart
+        local SmoothDrag = {}
+        SmoothDrag.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        TweenService:Create(MainFrame, TweenInfo.new(0.04, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), SmoothDrag):Play()
+    end
+    MainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    MainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then update(input) end
+    end)
+
+    -- Anti-AFK Core Logic
+    local vu = game:GetService('VirtualUser')
+    LocalPlayer.Idled:Connect(function()
+        if getgenv().AntiAfkExecuted then
+            vu:CaptureController()
+            vu:ClickButton2(Vector2.new())
+        end
+    end)
+
+    -- FPS Counter
+    local sec = tick()
+    local FPS = {}
+    RunService.RenderStepped:Connect(function()
+        if not getgenv().AntiAfkExecuted then return end
+        local fr = tick()
+        for i=#FPS, 1, -1 do FPS[i+1] = (FPS[i] >= fr - 1) and FPS[i] or nil end
+        FPS[1] = fr
+        local fps = math.floor((tick() - sec >= 1 and #FPS) or (#FPS / (tick() - sec)))
+        FPSValueLabel.Text = fps
+    end)
+
+    -- Ping Updater
+    task.spawn(function()
+        while getgenv().AntiAfkExecuted do
+            task.wait(1)
+            local pingStats = Stats:FindFirstChild("PerformanceStats")
+            if pingStats and pingStats.Ping then
+                local ping = math.floor(tonumber(pingStats.Ping:GetValue()))
+                PingValueLabel.Text = ping
+            end
+        end
+    end)
+
+    -- Timer
+    local saniye, dakika, saat = 0, 0, 0
+    task.spawn(function()
+        while getgenv().zamanbaslaticisi do
+            saniye = saniye + 1
+            task.wait(1)
+            if saniye >= 60 then saniye = 0; dakika = dakika + 1 end
+            if dakika >= 60 then dakika = 0; saat = saat + 1 end
+            TimerLabel.Text = saat .. ":" .. dakika .. ":" .. saniye
+        end
+    end)
+end
+
+-- ====================================================================
+-- ||                        FLUENT UI SETUP                         ||
+-- ====================================================================
+
 local Window = Library:CreateWindow({
-    Title = "SAILYNxSHI rawr",
-    SubTitle = "SHI Pie x Cream Fyy",
-    Size = UDim2.fromOffset(500,350),
-    TabWidth = 150,
-    Acrylic = false,
-    Theme = "SpeedHubX"
+    Title = "SAILYNxSHI rawr",
+    SubTitle = "SHI Pie x Cream Fyy",
+    Size = UDim2.fromOffset(500,350),
+    TabWidth = 150,
+    Acrylic = false,
+    Theme = "SpeedHubX"
 })
 
 
-local Farm  = Window:AddTab({Title = "OP Farm",    Icon = "axe"})        -- lightning bolt
-local Stats = Window:AddTab({Title = "Stats", Icon = "bar-chart-2"})-- stats bars
-local Rock  = Window:AddTab({Title = "Punch Rock", Icon = "hammer"})     -- mining hammer
-local Killer  = Window:AddTab({Title = "Kills",      Icon = "crosshair"})  -- cross-hair
-local Gift  = Window:AddTab({Title = "Gift",       Icon = "gift"})       -- wrapped gift
-local Credits  = Window:AddTab({Title = "Credits",    Icon = "star"})       -- golden star
+local Farm  = Window:AddTab({Title = "OP Farm",    Icon = "axe"})
+local StatsTab = Window:AddTab({Title = "Stats", Icon = "bar-chart-2"})
+local Rock  = Window:AddTab({Title = "Punch Rock", Icon = "hammer"})
+local Killer  = Window:AddTab({Title = "Kills",      Icon = "crosshair"})
+local Gift  = Window:AddTab({Title = "Gift",       Icon = "gift"})
+local Credits  = Window:AddTab({Title = "Credits",    Icon = "star"})
+
+
+-- --- OP FARM ELEMENTS ---
+
+-- 1. Anti-AFK
+Farm:AddToggle("Anti AFK (Auto Click)", false, function(state)
+    if state then
+        CreateAntiAfkUI()
+    else
+        DestroyAntiAfkUI()
+    end
+end)
+
+
+-- 2. Hide All Frames
+Farm:AddSwitch("Hide All Frames", false, function(bool)
+    for _, obj in pairs(ReplicatedStorage:GetChildren()) do
+        if obj.Name:match("Frame$") then
+            obj.Visible = not bool
+        end
+    end
+end)
+
+
+-- 3. Auto Spin (Toggle)
+Farm:AddToggle("Auto Spin Fortune Wheel", false, function(state)
+    _G.AutoSpinWheel = state
+    
+    if state then
+        task.spawn(function()
+            while _G.AutoSpinWheel and task.wait(0.1) do
+                ReplicatedStorage.rEvents.openFortuneWheelRemote:InvokeServer(
+                    "openFortuneWheel",
+                    ReplicatedStorage.fortuneWheelChances["Fortune Wheel"]
+                )
+            end
+        end)
+    end
+end)
+
+
+-- 4. Equip Swift Samurai (Button)
+Farm:AddButton("Equip 8 Swift Samurai", function()
+    print("Button pressed: equipping 8 Swift Samurai")
+    
+    local petsFolder = LocalPlayer:FindFirstChild("petsFolder")
+    if not petsFolder then return end
+
+    -- First unequip everything
+    for _, folder in pairs(petsFolder:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                ReplicatedStorage.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.1)
+
+    -- Now equip maximum 8 "Swift Samurai"
+    local equipped = 0
+    local maxEquip = 8
+    for _, folder in pairs(petsFolder:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                if pet.Name == "Swift Samurai" then
+                    ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                    equipped = equipped + 1
+                    print("Equipped Swift Samurai #" .. equipped)
+
+                    if equipped >= maxEquip then
+                        return
+                    end
+                end
+            end
+        end
+    end
+
+    print("Equipped " .. equipped .. " Swift Samurai")
+end)
+
+
+-- 5. Jungle Squat (Button/Teleport)
+Farm:AddButton("Teleport & Jungle Squat", function()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        -- Teleport coordinates
+        char:SetPrimaryPartCFrame(CFrame.new(-8374.25586, 34.5933418, 2932.44995))
+        
+        -- Interact with machine
+        local machine = workspace:FindFirstChild("machinesFolder")
+        if machine and machine:FindFirstChild("Jungle Squat") then
+            local seat = machine["Jungle Squat"]:FindFirstChild("interactSeat")
+            if seat then
+                ReplicatedStorage.rEvents.machineInteractRemote:InvokeServer("useMachine", seat)
+            end
+        end
+        print("[Jungle Squat] Action executed.")
+    else
+        warn("[Jungle Squat] Character not found or missing HumanoidRootPart.")
+    end
+end)
+
+-- --- REBIRTH FOLDER ---
+local RebirthFolder = Farm:AddFolder("OP Rebirth")
+
+-- 6. Fast Rebirths
+RebirthFolder:AddToggle("Fast Rebirths (Auto Train/Rebirth)", false, function(state)
+    getgenv().AutoFarming = state
+    if state then
+        task.spawn(function()
+            local a = ReplicatedStorage
+            local c = LocalPlayer
+            local function equipPetByName(name)
+                local folderPets = c:FindFirstChild("petsFolder")
+                if not folderPets then return end
+                for _, folder in pairs(folderPets:GetChildren()) do
+                    if folder:IsA("Folder") then
+                        for _, pet in pairs(folder:GetChildren()) do
+                            if pet.Name == name then
+                                a.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                            end
+                        end
+                    end
+                end
+            end
+            local function unequipAllPets()
+                local f = c:FindFirstChild("petsFolder")
+                if not f then return end
+                for _, folder in pairs(f:GetChildren()) do
+                    if folder:IsA("Folder") then
+                        for _, pet in pairs(folder:GetChildren()) do
+                            a.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+                        end
+                    end
+                end
+                task.wait(0.1)
+            end
+            local function getGoldenRebirthCount()
+                local g = c:FindFirstChild("ultimatesFolder")
+                if g and g:FindFirstChild("Golden Rebirth") then
+                    return g["Golden Rebirth"].Value
+                end
+                return 0
+            end
+            local function getStrengthRequiredForRebirth()
+                local rebirths = c.leaderstats.Rebirths.Value
+                local baseStrength = 10000 + (5000 * rebirths)
+                local golden = getGoldenRebirthCount()
+                if golden >= 1 and golden <= 5 then
+                    baseStrength = baseStrength * (1 - golden * 0.1)
+                end
+                return math.floor(baseStrength)
+            end
+            while getgenv().AutoFarming do
+                local requiredStrength = getStrengthRequiredForRebirth()
+                -- 1. Train
+                unequipAllPets()
+                equipPetByName("Swift Samurai")
+                while c.leaderstats.Strength.Value < requiredStrength and getgenv().AutoFarming do
+                    for _ = 1, 10 do
+                        c.muscleEvent:FireServer("rep")
+                    end
+                    task.wait()
+                end
+                
+                -- 2. Rebirth
+                if getgenv().AutoFarming then
+                    unequipAllPets()
+                    equipPetByName("Tribal Overlord")
+                    local oldRebirths = c.leaderstats.Rebirths.Value
+                    repeat
+                        a.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                        task.wait(0.1)
+                    until c.leaderstats.Rebirths.Value > oldRebirths or not getgenv().AutoFarming
+                end
+                task.wait()
+            end
+        end)
+    end
+end)
+
+-- 7. Lock Position
+RebirthFolder:AddSwitch("Lock Position (Anti Push)", false, function(Value)
+    if Value then
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local currentPos = char and char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.CFrame
+        if currentPos then
+            getgenv().posLock = RunService.Heartbeat:Connect(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = currentPos
+                end
+            end)
+        end
+    else
+        if getgenv().posLock then
+            getgenv().posLock:Disconnect()
+            getgenv().posLock = nil
+        end
+    end
+end)
+
+-- 8. Anti Lag
+RebirthFolder:AddButton("Anti Lag (Full Optimization)", function()
+    -- Disable particles and effects
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            v.Enabled = false
+        end
+    end
+
+    -- Lighting optimization
+    local lighting = game:GetService("Lighting")
+    lighting.GlobalShadows = false
+    lighting.FogEnd = 9e9
+    lighting.Brightness = 0
+
+    -- Rendering optimization
+    settings().Rendering.QualityLevel = 1
+
+    -- Texture/Decal removal and material change
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("Decal") or v:IsA("Texture") then
+            v.Transparency = 1
+        elseif v:IsA("BasePart") and not v:IsA("MeshPart") then
+            v.Material = Enum.Material.SmoothPlastic
+            if v.Parent and (v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")) then
+            else
+                v.Reflectance = 0
+            end
+        end
+    end
+
+    -- Disable post-processing effects
+    for _, v in pairs(lighting:GetChildren()) do
+        if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+            v.Enabled = false
+        end
+    end
+
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Anti Lag Activated",
+        Text = "Full optimization applied!",
+        Duration = 5
+    })
+end)
+
+-- 9. Jungle Lift
+RebirthFolder:AddButton("Teleport & Jungle Lift", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    hrp.CFrame = CFrame.new(-8652.8672, 29.2667, 2089.2617)
+    task.wait(0.2)
+
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+    task.wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+
+    print("[Jungle Lift] Teleport and interaction executed.")
+end)
+
+Farm:AddLabel("--- Auto Tools & Farm Loop ---")
+
+local autoEquipToolsFolder = Farm:AddFolder("Auto Tools")
+
+-- Auto Tools Toggle (Controls the main farming loop)
+autoEquipToolsFolder:AddToggle("Auto Rep Farm (Muscle/Rock)", false, function(state)
+    getgenv()._AutoRepFarmEnabled = state
+end)
+
+
+-- --- CONFIGURATION FOR AUTO REP FARM ---
+local PET_NAME = "Swift Samurai"
+local ROCK_NAME = "Rock5M"
+local PROTEIN_EGG_NAME = "ProteinEgg"
+local PROTEIN_EGG_INTERVAL = 30 * 60
+local REPS_PER_CYCLE = 160
+local REP_DELAY = 0.01
+local ROCK_INTERVAL = 5
+local MAX_PING = 700
+
+local HumanoidRootPart
+local lastProteinEggTime = 0
+local lastRockTime = 0
+local RockRef = workspace:FindFirstChild(ROCK_NAME)
+
+local function getPing()
+    local success, ping = pcall(function()
+        return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+    end)
+    return success and ping or 999
+end
+
+local function updateCharacterRefs()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    HumanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+end
+
+local function equipPet()
+    local petsFolder = LocalPlayer:FindFirstChild("petsFolder")
+    if petsFolder and petsFolder:FindFirstChild("Unique") then
+        for _, pet in pairs(petsFolder.Unique:GetChildren()) do
+            if pet.Name == PET_NAME then
+                ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                break
+            end
+        end
+    end
+end
+
+local function eatProteinEgg()
+    if LocalPlayer:FindFirstChild("Backpack") then
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if item.Name == PROTEIN_EGG_NAME then
+                ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
+                break
+            end
+        end
+    end
+end
+
+local function hitRock()
+    if not RockRef or not RockRef.Parent then
+        RockRef = workspace:FindFirstChild(ROCK_NAME)
+    end
+    if RockRef and HumanoidRootPart then
+        HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
+        ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
+    end
+end
+
+-- --- Main Auto Rep Farm Loop ---
+if not getgenv()._AutoRepFarmLoop then
+    getgenv()._AutoRepFarmLoop = true
+
+    task.spawn(function()
+        updateCharacterRefs()
+        equipPet()
+        lastProteinEggTime = tick()
+        lastRockTime = tick()
+
+        while true do
+            if getgenv()._AutoRepFarmEnabled then
+                local ping = getPing()
+                if ping > MAX_PING then
+                    warn("[Auto Rep Farm] High ping ("..math.floor(ping).."ms), pausing for 5s...")
+                    task.wait(5)
+                else
+                    -- Rep Muscle
+                    if LocalPlayer:FindFirstChild("muscleEvent") then
+                        for i = 1, REPS_PER_CYCLE do
+                            LocalPlayer.muscleEvent:FireServer("rep")
+                        end
+                    end
+
+                    -- Eat Egg
+                    if tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
+                        eatProteinEgg()
+                        lastProteinEggTime = tick()
+                    end
+
+                    -- Hit Rock
+                    if tick() - lastRockTime >= ROCK_INTERVAL then
+                        hitRock()
+                        lastRockTime = tick()
+                    end
+
+                    task.wait(REP_DELAY)
+                end
+            else
+                task.wait(1)
+            end
+        end
+    end)
+end
