@@ -842,6 +842,7 @@ createRockFarmSwitch("Legend Gym Rock", 1000000)
 createRockFarmSwitch("Muscle King Gym Rock", 5000000)
 createRockFarmSwitch("Ancient Jungle Rock", 10000000)
 
+
 toolsSection:AddTextBox("Rebirth Target", function(text)
     local newValue = tonumber(text)
     if newValue and newValue > 0 then
