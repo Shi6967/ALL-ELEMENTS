@@ -23,8 +23,8 @@ end
 local Window = Library:CreateWindow({
     Title = "SAILYNxSHI rawr",
     SubTitle = "SHI Pie x Cream Fyy",
-    Size = UDim2.fromOffset(500,350),
-    TabWidth = 150,
+    Size = UDim2.fromOffset(450,350),
+    TabWidth = 160,
     Acrylic = false,
     Theme = "SpeedHubX"
 })
