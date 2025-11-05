@@ -1,5 +1,6 @@
 -- Example_AllElements_FromURL.lua
 -- Loads the UI library from the provided URL and demonstrates every element.
+-- Place this as a LocalScript (StarterPlayerScripts) or execute in a local environment.
 
 local LIB_URL = "https://raw.githubusercontent.com/Shi6967/Ad-Link/refs/heads/main/Link"
 local ok, a, b, c = pcall(function()
@@ -14,27 +15,954 @@ if ok then
 else
 	if getgenv and getgenv().Fluent then
 		Library = getgenv().Fluent
+		warn("Loaded library from getgenv().Fluent as fallback.")
 	else
 		error("Failed to load UI library from URL: " .. tostring(a))
 	end
 end
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local LocalPlayer = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local PET_NAME = "Swift Samurai"
+local ROCK_NAME = "Rock5M"
+local PROTEIN_EGG_NAME = "ProteinEgg"
+local PROTEIN_EGG_INTERVAL = 30 * 60 
+local REPS_PER_CYCLE = 160 
+local REP_DELAY = 0.01 
+local ROCK_INTERVAL = 5 
+local MAX_PING = 700 
+
+local HumanoidRootPart
+local lastProteinEggTime = 0
+local lastRockTime = 0
+local RockRef = workspace:FindFirstChild(ROCK_NAME)
+local autoEatEnabled = false
+local darkSky
+
+local function getPing()
+	local success, ping = pcall(function()
+		return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+	end)
+	return success and ping or 999
+end
+
+local function updateCharacterRefs()
+	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	HumanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+end
+
+local function eatProteinEgg()
+    if LocalPlayer:FindFirstChild("Backpack") then
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if item.Name == PROTEIN_EGG_NAME then
+                ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
+                break
+            end
+        end
+    end
+end
+
+local function unequipAllPets(a, c)
+    local f = c:FindFirstChild("petsFolder")
+    if not f then return end
+    for _, folder in pairs(f:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                a.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.1)
+end
+
+local function equipPetByName(a, c, name)
+    local folderPets = c:FindFirstChild("petsFolder")
+    if not folderPets then return end
+    for _, folder in pairs(folderPets:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                if pet.Name == name then
+                    a.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                end
+            end
+        end
+    end
+end
+
+local function getStrengthRequiredForRebirth(c)
+    local rebirths = c.leaderstats.Rebirths.Value
+    local baseStrength = 10000 + (5000 * rebirths)
     
+    local g = c:FindFirstChild("ultimatesFolder")
+    local golden = 0
+    if g and g:FindFirstChild("Golden Rebirth") then
+        golden = g["Golden Rebirth"].Value
+    end
+    
+    if golden >= 1 and golden <= 5 then
+        baseStrength = baseStrength * (1 - golden * 0.1)
+    end
+    return math.floor(baseStrength)
+end
+
+local function hitRock()
+    if not RockRef or not RockRef.Parent then
+        RockRef = workspace:FindFirstChild(ROCK_NAME)
+    end
+    if RockRef and HumanoidRootPart then
+        HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
+        ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
+    end
+end
+
+if not getgenv()._AutoRepFarmLoop then
+    getgenv()._AutoRepFarmLoop = true
+
+    task.spawn(function()
+        updateCharacterRefs()
+        
+        lastProteinEggTime = tick()
+        lastRockTime = tick()
+        
+        while true do
+            if getgenv()._AutoRepFarmEnabled then
+                local ping = getPing()
+                
+                if ping > MAX_PING then
+                    task.wait(5)
+                else
+                    if LocalPlayer:FindFirstChild("muscleEvent") then
+                        for i = 1, REPS_PER_CYCLE do
+                            LocalPlayer.muscleEvent:FireServer("rep")
+                            task.wait(REP_DELAY) 
+                        end
+                    end
+                    
+                    if not autoEatEnabled and tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
+                        eatProteinEgg()
+                        lastProteinEggTime = tick()
+                    end
+
+                    if tick() - lastRockTime >= ROCK_INTERVAL then
+                        hitRock()
+                        lastRockTime = tick()
+                    end
+                end
+            else
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+task.spawn(function()
+    while true do
+        if autoEatEnabled then
+            eatProteinEgg()
+            task.wait(1800)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
 local Window = Library:CreateWindow({
-    Title = "SAILYNxSHI ugh",
-    SubTitle = "SHI Pie x Cream Fyy",
-    Size = UDim2.fromOffset(450,350),
-    TabWidth = 160,
-    Acrylic = false,
-    Theme = "SpeedHubX"
+	Title = "SAILYNxSHI AutoFarm",
+	SubTitle = "Complete Grinding Suite",
+	Size = UDim2.fromOffset(450, 350),
+	TabWidth = 160,
+	Theme = "SpeedHubX",
+	Acrylic = false,
+})
+
+local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "flame" })
+local farmSection = autoFarmTab:AddSection("Farm OP")
+
+farmSection:AddToggle("OP_STRENGTH_TOGGLE", {
+	Title = "OP STRENGTH",
+	Description = "I-a-activate ang strength auto-farm. (OP Strength)",
+	Default = false,
+	Callback = function(state)
+		getgenv()._AutoRepFarmEnabled = state
+	end,
+})
+
+farmSection:AddToggle("EAT_EGG_TOGGLE", {
+	Title = "Auto Eat Egg (30 Min)",
+	Description = "Awtomatikong kakain ng Protein Egg kada 30 minuto.",
+	Default = false,
+	Callback = function(state)
+		autoEatEnabled = state
+	end,
+})
+
+farmSection:AddToggle("ANTI_LAG_TOGGLE", {
+	Title = "Anti Lag",
+	Description = "Tinatanggal ang GUIs, particles, lights, at nagse-set ng dark sky para sa max FPS.",
+	Default = false,
+	Callback = function(State)
+		getgenv().ANTI_LAG_TOGGLE = State
+		if State then
+			for _, gui in pairs(LocalPlayer.PlayerGui:GetChildren()) do
+				if gui:IsA("ScreenGui") and gui.Name ~= "Fluent_UI" then gui:Destroy() end
+			end
+			for _, obj in pairs(workspace:GetDescendants()) do
+				if obj:IsA("ParticleEmitter") or obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+					obj:Destroy()
+				end
+			end
+			for _, v in pairs(Lighting:GetChildren()) do
+				if v:IsA("Sky") then v:Destroy() end
+			end
+			
+			darkSky = Instance.new("Sky")
+			darkSky.Name = "DarkSky"
+			darkSky.SkyboxBk = "rbxassetid://0"
+			darkSky.SkyboxDn = "rbxassetid://0"
+			darkSky.SkyboxFt = "rbxassetid://0"
+			darkSky.SkyboxLf = "rbxassetid://0"
+			darkSky.SkyboxRt = "rbxassetid://0"
+			darkSky.SkyboxUp = "rbxassetid://0"
+			darkSky.Parent = Lighting
+			Lighting.Brightness = 0
+			Lighting.ClockTime = 0
+			Lighting.TimeOfDay = "00:00:00"
+			Lighting.OutdoorAmbient = Color3.new(0,0,0)
+			Lighting.Ambient = Color3.new(0,0,0)
+			Lighting.FogColor = Color3.new(0,0,0)
+			Lighting.FogEnd = 100
+
+			task.spawn(function()
+				while getgenv().ANTI_LAG_TOGGLE and task.wait(5) do
+					if not Lighting:FindFirstChild("DarkSky") then
+						darkSky:Clone().Parent = Lighting
+					end
+				end
+			end)
+		else
+			Lighting.Brightness = 2
+			Lighting.ClockTime = 14
+			Lighting.OutdoorAmbient = Color3.new(0.5,0.5,0.5)
+			Lighting.Ambient = Color3.new(0.5,0.5,0.5)
+			if Lighting:FindFirstChild("DarkSky") then Lighting:FindFirstChild("DarkSky"):Destroy() end
+			Instance.new("Sky", Lighting)
+		end
+	end,
+})
+
+farmSection:AddToggle("ANTI_AFK_TOGGLE", {
+	Title = "Anti AFK",
+	Description = "Pinipigilan ang disconnection dahil sa inactivity (May kasamang Timer/FPS/Ping UI).",
+	Default = false,
+	Callback = function(state)
+        getgenv().AntiAfkExecuted = state
+        getgenv().zamanbaslaticisi = state
+        
+        local ColdUI = game.CoreGui:FindFirstChild("thisoneissocoldww")
+        
+        if state then
+            if ColdUI then ColdUI:Destroy() end 
+            
+            local thisoneissocoldww = Instance.new("ScreenGui", game.CoreGui)
+            local madebybloodofbatus = Instance.new("Frame", thisoneissocoldww)
+            local UICornerw = Instance.new("UICorner", madebybloodofbatus)
+            local DestroyButton = Instance.new("TextButton", madebybloodofbatus)
+            local uselesslabelone = Instance.new("TextLabel", madebybloodofbatus)
+            local timerlabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselesslabeltwo = Instance.new("TextLabel", madebybloodofbatus)
+            local fpslabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselesslabelthree = Instance.new("TextLabel", madebybloodofbatus)
+            local pinglabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselessframeone = Instance.new("Frame", madebybloodofbatus)
+            local UICornerww = Instance.new("UICorner", uselessframeone)
+            local uselesslabelfour = Instance.new("TextLabel", madebybloodofbatus)
+
+            thisoneissocoldww.Name = "thisoneissocoldww"
+            thisoneissocoldww.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+            madebybloodofbatus.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            madebybloodofbatus.Position = UDim2.new(0.085,0,0.13,0)
+            madebybloodofbatus.Size = UDim2.new(0,225,0,96)
+
+            DestroyButton.BackgroundTransparency = 1
+            DestroyButton.Position = UDim2.new(0.87,0,0.02,0)
+            DestroyButton.Size = UDim2.new(0,27,0,15)
+            DestroyButton.Font = Enum.Font.SourceSans
+            DestroyButton.Text = "X"
+            DestroyButton.TextColor3 = Color3.fromRGB(255,255,255)
+            DestroyButton.TextSize = 14
+            DestroyButton.MouseButton1Click:Connect(function()
+                getgenv().AntiAfkExecuted = false
+                getgenv().zamanbaslaticisi = false
+                task.wait(0.1)
+                thisoneissocoldww:Destroy()
+            end)
+
+            uselesslabelone.BackgroundTransparency = 1
+            uselesslabelone.Position = UDim2.new(0.3,0,0,0)
+            uselesslabelone.Size = UDim2.new(0,95,0,24)
+            uselesslabelone.Font = Enum.Font.SourceSans
+            uselesslabelone.Text = "Anti Afk Script"
+            uselesslabelone.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelone.TextSize = 14
+
+            timerlabel.BackgroundTransparency = 1
+            timerlabel.Position = UDim2.new(0.65,0,0.68,0)
+            timerlabel.Size = UDim2.new(0,60,0,24)
+            timerlabel.Font = Enum.Font.SourceSans
+            timerlabel.Text = "0:0:0"
+            timerlabel.TextColor3 = Color3.fromRGB(255,255,255)
+            timerlabel.TextSize = 14
+
+            uselesslabeltwo.BackgroundTransparency = 1
+            uselesslabeltwo.Position = UDim2.new(0.03,0,0.37,0)
+            uselesslabeltwo.Size = UDim2.new(0,29,0,24)
+            uselesslabeltwo.Font = Enum.Font.SourceSans
+            uselesslabeltwo.Text = "Ping: "
+            uselesslabeltwo.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabeltwo.TextSize = 14
+
+            fpslabel.BackgroundTransparency = 1
+            fpslabel.Position = UDim2.new(0.72,0,0.35,0)
+            fpslabel.Size = UDim2.new(0,55,0,24)
+            fpslabel.Font = Enum.Font.SourceSans
+            fpslabel.Text = "0"
+            fpslabel.TextColor3 = Color3.fromRGB(255,255,255)
+            fpslabel.TextSize = 14
+
+            uselesslabelthree.BackgroundTransparency = 1
+            uselesslabelthree.Position = UDim2.new(0.5,0,0.35,0)
+            uselesslabelthree.Size = UDim2.new(0,26,0,24)
+            uselesslabelthree.Font = Enum.Font.SourceSans
+            uselesslabelthree.Text = "Fps: "
+            uselesslabelthree.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelthree.TextSize = 14
+
+            pinglabel.BackgroundTransparency = 1
+            pinglabel.Position = UDim2.new(0.2,0,0.37,0)
+            pinglabel.Size = UDim2.new(0,55,0,24)
+            pinglabel.Font = Enum.Font.SourceSans
+            pinglabel.Text = "0"
+            pinglabel.TextColor3 = Color3.fromRGB(255,255,255)
+            pinglabel.TextSize = 14
+            pinglabel.TextWrapped = true
+
+            uselessframeone.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            uselessframeone.Position = UDim2.new(0.004,0,0.24,0)
+            uselessframeone.Size = UDim2.new(0,224,0,5)
+            UICornerww.CornerRadius = UDim.new(0,50)
+
+            uselesslabelfour.BackgroundTransparency = 1
+            uselesslabelfour.Position = UDim2.new(0.05,0,0.81,0)
+            uselesslabelfour.Size = UDim2.new(0,95,0,12)
+            uselesslabelfour.Font = Enum.Font.SourceSans
+            uselesslabelfour.Text = "Anti-Afk Auto Enabled"
+            uselesslabelfour.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelfour.TextSize = 14
+
+            local Drag = madebybloodofbatus
+            local gsTween = game:GetService("TweenService")
+            local UserInputService = game:GetService("UserInputService")
+            local dragging, dragInput, dragStart, startPos
+            local function update(input)
+                local delta = input.Position - dragStart
+                local dragTime = 0.04
+                local SmoothDrag = {}
+                SmoothDrag.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+                gsTween:Create(Drag,TweenInfo.new(dragTime,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),SmoothDrag):Play()
+            end
+            Drag.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = Drag.Position
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                    end)
+                end
+            end)
+            Drag.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if input == dragInput and dragging then update(input) end
+            end)
+
+            local vu = game:GetService('VirtualUser')
+            game.Players.LocalPlayer.Idled:Connect(function()
+                if getgenv().AntiAfkExecuted then
+                    vu:CaptureController()
+                    vu:ClickButton2(Vector2.new())
+                end
+            end)
+
+            local sec = tick()
+            local FPS = {}
+            RunService.RenderStepped:Connect(function()
+                if getgenv().AntiAfkExecuted then
+                    local fr = tick()
+                    for i=#FPS,1,-1 do FPS[i+1] = (FPS[i]>=fr-1) and FPS[i] or nil end
+                    FPS[1] = fr
+                    local fps = math.floor((tick()-sec>=1 and #FPS) or (#FPS/(tick()-sec)))
+                    fpslabel.Text = fps
+                end
+            end)
+
+            task.spawn(function()
+                while getgenv().AntiAfkExecuted do
+                    task.wait(1)
+                    local ping = math.floor(tonumber(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()))
+                    pinglabel.Text = ping
+                end
+            end)
+
+            local saniye, dakika, saat = 0,0,0
+            task.spawn(function()
+                while getgenv().zamanbaslaticisi do
+                    saniye = saniye + 1
+                    task.wait(1)
+                    if saniye>=60 then saniye=0;dakika=dakika+1 end
+                    if dakika>=60 then dakika=0;saat=saat+1 end
+                    timerlabel.Text = saat..":"..dakika..":"..saniye
+                end
+            end)
+        else
+            if ColdUI then
+                ColdUI:Destroy()
+            end
+        end
+	end,
+})
+
+farmSection:AddButton({
+	Title = "Auto Spin",
+	Description = "Awtomatikong i-spin ang fortune wheel kada 0.1 segundo.",
+	Callback = function()
+		if not _G.AutoSpinWheel or not _G.AutoSpinWheel:IsRunning() then
+			_G.AutoSpinWheel = task.spawn(function()
+				while true do
+					game:GetService("ReplicatedStorage").rEvents.openFortuneWheelRemote:InvokeServer(
+						"openFortuneWheel",
+						game:GetService("ReplicatedStorage").fortuneWheelChances["Fortune Wheel"]
+					)
+					task.wait(0.1)
+				end
+			end)
+		else
+			task.cancel(_G.AutoSpinWheel)
+			_G.AutoSpinWheel = nil
+		end
+	end,
+})
+
+farmSection:AddButton({
+	Title = "Equip Swift Samurai (x8)",
+	Description = "Unequip lahat ng pets, tapos i-e-equip ang max na 8 'Swift Samurai'.",
+	Callback = function()
+		local petsFolder = LocalPlayer:FindFirstChild("petsFolder")
+		if not petsFolder then return end
+
+		unequipAllPets(ReplicatedStorage, LocalPlayer)
+		task.wait(0.1)
+
+		local equipped = 0
+		local maxEquip = 8
+		for _, folder in pairs(petsFolder:GetChildren()) do
+			if folder:IsA("Folder") then
+				for _, pet in pairs(folder:GetChildren()) do
+					if pet.Name == "Swift Samurai" and equipped < maxEquip then
+						ReplicatedStorage.rEvents.equipPetEvent:FireServer("equipPet", pet)
+						equipped = equipped + 1
+					end
+				end
+			end
+		end
+	end,
+})
+
+farmSection:AddButton({
+	Title = "Teleport & Squat (Jungle)",
+	Description = "Mag-teleport sa Jungle Squat machine at susubukang makipag-ugnayan.",
+	Callback = function()
+		local char = LocalPlayer.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			char:SetPrimaryPartCFrame(CFrame.new(-8374.25586, 34.5933418, 2932.44995))
+			
+			local machine = workspace:FindFirstChild("machinesFolder")
+			if machine and machine:FindFirstChild("Jungle Squat") then
+				local seat = machine["Jungle Squat"]:FindFirstChild("interactSeat")
+				if seat then
+					game:GetService("ReplicatedStorage").rEvents.machineInteractRemote:InvokeServer("useMachine", seat)
+				end
+			end
+		end
+	end,
 })
 
 
-local Farm  = Window:AddTab({Title = "OP Farm",    Icon = "axe"})        -- lightning bolt
-local Stats = Window:AddTab({Title = "Stats", Icon = "bar-chart-2"})-- stats bars
-local Rock  = Window:AddTab({Title = "Punch Rock", Icon = "hammer"})     -- mining hammer
-local Killer  = Window:AddTab({Title = "Kills",      Icon = "crosshair"})  -- cross-hair
-local Teleport  = Window:AddTab({Title = "Teleport",   Icon = "move"})       -- directional arrows
-local Crystal  = Window:AddTab({Title = "Crystals",   Icon = "gem"})        -- crystal shape
-local Gift  = Window:AddTab({Title = "Gift",       Icon = "gift"})       -- wrapped gift
-local Credits  = Window:AddTab({Title = "Credits",    Icon = "star"})       -- golden star
+local rebirthTab = Window:AddTab({ Title = "Rebirth", Icon = "sparkle" })
+local rebirthSection = rebirthTab:AddSection("OP Rebirth")
+
+local leaderstats = LocalPlayer:WaitForChild("leaderstats")
+local rebirthsStat = leaderstats:WaitForChild("Rebirths")
+
+rebirthSection:AddToggle("FAST_REBIRTHS", {
+	Title = "Fast Rebirths",
+	Description = "Awtomatikong mag-f-farm ng strength at magre-rebirth kapag naabot ang requirement.",
+	Default = false,
+	Callback = function(state)
+		getgenv().AutoFarming = state
+		if state then
+			task.spawn(function()
+				local a = ReplicatedStorage
+				local c = LocalPlayer
+				
+				while getgenv().AutoFarming do
+					local requiredStrength = getStrengthRequiredForRebirth(c)
+					
+					unequipAllPets(a, c)
+					equipPetByName(a, c, "Swift Samurai")
+					
+					while c.leaderstats.Strength.Value < requiredStrength and getgenv().AutoFarming do
+						for _ = 1, 10 do
+							c.muscleEvent:FireServer("rep")
+						end
+						task.wait()
+					end
+					
+					if getgenv().AutoFarming then
+						unequipAllPets(a, c)
+						equipPetByName(a, c, "Tribal Overlord")
+						local oldRebirths = c.leaderstats.Rebirths.Value
+						repeat
+							a.rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+							task.wait(0.1)
+						until c.leaderstats.Rebirths.Value > oldRebirths or not getgenv().AutoFarming
+					end
+					task.wait()
+				end
+			end)
+		end
+	end,
+})
+
+rebirthSection:AddToggle("LOCK_POSITION", {
+	Title = "Lock Position",
+	Description = "I-lo-lock ang posisyon ng character para hindi gumalaw habang nagfa-farm.",
+	Default = false,
+	Callback = function(Value)
+		if Value then
+			local char = LocalPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+			local currentPos = char.HumanoidRootPart.CFrame
+			getgenv().posLock = RunService.Heartbeat:Connect(function()
+				if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+					LocalPlayer.Character.HumanoidRootPart.CFrame = currentPos
+				end
+			end)
+		else
+			if getgenv().posLock then
+				getgenv().posLock:Disconnect()
+				getgenv().posLock = nil
+			end
+		end
+	end,
+})
+
+rebirthSection:AddButton({
+	Title = "Anti Lag (Rebirth Optimized)",
+	Description = "Extreme optimization: disables effects, sets graphics to minimum, removes decals/textures.",
+	Callback = function()
+		for _, v in pairs(game:GetDescendants()) do
+			if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+				v.Enabled = false
+			end
+		end
+
+		local lighting = game:GetService("Lighting")
+		lighting.GlobalShadows = false
+		lighting.FogEnd = 9e9
+		lighting.Brightness = 0
+
+		settings().Rendering.QualityLevel = 1
+
+		for _, v in pairs(game:GetDescendants()) do
+			if v:IsA("Decal") or v:IsA("Texture") then
+				v.Transparency = 1
+			elseif v:IsA("BasePart") and not v:IsA("MeshPart") then
+				v.Material = Enum.Material.SmoothPlastic
+				if v.Parent and (v.Parent:FindFirstChild("Humanoid") or v.Parent.Parent:FindFirstChild("Humanoid")) then
+				else
+					v.Reflectance = 0
+				end
+			end
+		end
+
+		for _, v in pairs(lighting:GetChildren()) do
+			if v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+				v.Enabled = false
+			end
+		end
+
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Anti Lag Activated",
+			Text = "Full optimization applied!",
+			Duration = 5
+		})
+	end,
+})
+
+rebirthSection:AddButton({
+	Title = "Teleport & Lift (Jungle)",
+	Description = "Mag-teleport sa Jungle Lift machine at susubukang gamitin ang 'E' key (Interact).",
+	Callback = function()
+		local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		local hrp = char:WaitForChild("HumanoidRootPart")
+
+		hrp.CFrame = CFrame.new(-8652.8672, 29.2667, 2089.2617)
+		task.wait(0.2)
+
+		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+		task.wait(0.05)
+		VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+	end,
+})
+
+local toolsTab = Window:AddTab({ Title = "Tools", Icon = "gear" })
+local toolsSection = toolsTab:AddSection("Auto Tools")
+
+ toolsSection:AddButton({
+    Title = "Gamepass AutoLift",
+    Description = "Lokal na ia-unlock lahat ng gamepasses na makikita sa ReplicatedStorage.",
+    Callback = function()
+        local gamepassFolder = game:GetService("ReplicatedStorage").gamepassIds
+        local player = game:GetService("Players").LocalPlayer
+        
+        if not player:FindFirstChild("ownedGamepasses") then
+            local folder = Instance.new("Folder")
+            folder.Name = "ownedGamepasses"
+            folder.Parent = player
+        end
+        
+        for _, gamepass in pairs(gamepassFolder:GetChildren()) do
+            local value = Instance.new("IntValue")
+            value.Name = gamepass.Name
+            value.Value = gamepass.Value
+            value.Parent = player.ownedGamepasses
+        end
+    end,
+})
+
+local function createAutoToolSwitch(toolName, globalVar)
+    toolsSection:AddToggle(globalVar, {
+        Title = "Auto " .. toolName,
+        Description = "I-e-equip at auto-rep sa '" .. toolName .. "' tool.",
+        Default = false,
+        Callback = function(Value)
+            _G[globalVar] = Value
+            local character = LocalPlayer.Character
+
+            if Value then
+                local tool = LocalPlayer.Backpack:FindFirstChild(toolName)
+                if tool and character then
+                    character.Humanoid:EquipTool(tool)
+                end
+            else
+                local equipped = character and character:FindFirstChild(toolName)
+                if equipped then
+                    equipped.Parent = LocalPlayer.Backpack
+                end
+            end
+            
+            task.spawn(function()
+                while _G[globalVar] do
+                    if not _G[globalVar] then break end
+                    LocalPlayer.muscleEvent:FireServer("rep")
+                    task.wait(0.1)
+                end
+            end)
+        end,
+    })
+end
+
+createAutoToolSwitch("Weight", "AutoWeight")
+createAutoToolSwitch("Pushups", "AutoPushups")
+createAutoToolSwitch("Handstands", "AutoHandstands")
+createAutoToolSwitch("Situps", "AutoSitups")
+
+
+toolsSection:AddToggle("AutoPunchToggle", {
+    Title = "Auto Punch",
+    Description = "Awtomatikong magpapadala ng fast punch sa pamamagitan ng pag-reset ng attack time.",
+    Default = false,
+    Callback = function(Value)
+        _G.fastHitActive = Value
+        local character = LocalPlayer.Character
+        local backpack = LocalPlayer.Backpack
+
+        if Value then
+            task.spawn(function()
+                while _G.fastHitActive do
+                    if not _G.fastHitActive then break end
+                    
+                    local punch = backpack:FindFirstChild("Punch")
+                    if punch then
+                        punch.Parent = character
+                        if punch:FindFirstChild("attackTime") then
+                            punch.attackTime.Value = 0
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+            
+            task.spawn(function()
+                while _G.fastHitActive do
+                    if not _G.fastHitActive then break end
+                    
+                    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+                    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+                    
+                    local punchTool = character and character:FindFirstChild("Punch")
+                    if punchTool then
+                        punchTool:Activate()
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            local equipped = character and character:FindFirstChild("Punch")
+            if equipped then
+                equipped.Parent = backpack
+            end
+        end
+    end,
+})
+
+toolsSection:AddToggle("FastToolsToggle", {
+    Title = "Fast Tools",
+    Description = "Ise-set ang tool cooldowns (repTime/attackTime) sa 0 para sa instant use.",
+    Default = false,
+    Callback = function(Value)
+        _G.FastTools = Value
+        
+        local toolSettings = {
+            {"Punch", "attackTime", Value and 0 or 0.01},
+            {"Ground Slam", "attackTime", Value and 0 or 6},
+            {"Stomp", "attackTime", Value and 0 or 7},
+            {"Handstands", "repTime", Value and 0 or 1},
+            {"Pushups", "repTime", Value and 0 or 1},
+            {"Weight", "repTime", Value and 0 or 1},
+            {"Situps", "repTime", Value and 0 or 1}
+        }
+        
+        local backpack = LocalPlayer.Backpack
+        local character = LocalPlayer.Character
+        
+        for _, toolInfo in ipairs(toolSettings) do
+            local toolName = toolInfo[1]
+            local valueName = toolInfo[2]
+            local targetValue = toolInfo[3]
+
+            local toolInBackpack = backpack:FindFirstChild(toolName)
+            if toolInBackpack and toolInBackpack:FindFirstChild(valueName) then
+                toolInBackpack[valueName].Value = targetValue
+            end
+
+            local equippedTool = character and character:FindFirstChild(toolName)
+            if equippedTool and equippedTool:FindFirstChild(valueName) then
+                equippedTool[valueName].Value = targetValue
+            end
+        end
+    end,
+})
+
+local toolSection = toolsTab:AddSection("Rock Farming")
+
+local function gettool()
+    local punchTool = LocalPlayer.Backpack:FindFirstChild("Punch")
+    if punchTool and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:EquipTool(punchTool)
+    end
+    
+    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+end
+
+local function createRockFarmSwitch(title, neededDurability)
+    local globalSwitchName = "Farm" .. title:gsub(" ", "") 
+    
+    toolSection:AddToggle(globalSwitchName, {
+        Title = "Farm " .. title,
+        Description = "Awtomatikong magba-farm ng " .. title .. ".",
+        Default = false,
+        Callback = function(bool)
+            _G.autoFarm = bool
+            
+            if bool then
+                task.spawn(function()
+                    while _G.autoFarm do
+                        task.wait()
+                        if LocalPlayer.Durability.Value >= neededDurability then
+                            for i, v in pairs(game:GetService("Workspace").machinesFolder:GetDescendants()) do
+                                if v.Name == "neededDurability" and v.Value == neededDurability then 
+                                    local rock = v.Parent:FindFirstChild("Rock")
+                                    local char = LocalPlayer.Character
+                                    
+                                    if rock and char and char:FindFirstChild("LeftHand") and char:FindFirstChild("RightHand") then
+                                        local rightHand = char.RightHand
+                                        local leftHand = char.LeftHand
+                                        
+                                        firetouchinterest(rock, rightHand, 0)
+                                        firetouchinterest(rock, rightHand, 1)
+                                        firetouchinterest(rock, leftHand, 0)
+                                        firetouchinterest(rock, leftHand, 1)
+                                        
+                                        gettool()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end,
+    })
+end
+
+createRockFarmSwitch("Legend Gym Rock", 1000000)
+createRockFarmSwitch("Muscle King Gym Rock", 5000000)
+createRockFarmSwitch("Ancient Jungle Rock", 10000000)
+
+local toolsSection = toolsTab:AddSection("Rebirth Controls")
+
+toolsSection:AddTextBox("Rebirth Target", function(text)
+    local newValue = tonumber(text)
+    if newValue and newValue > 0 then
+        targetRebirthValue = newValue
+        updateStats()
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Objetivo Actualizado",
+            Text = "Nuevo objetivo: " .. tostring(targetRebirthValue) .. " renacimientos",
+            Duration = 0
+        })
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Entrada InvÃ¡lida",
+            Text = "Por favor ingresa un nÃºmero vÃ¡lido mayor que 0",
+            Duration = 0
+        })
+    end
+end)
+
+local infiniteSwitch
+
+local targetSwitch = toolsSection:AddToggle("Auto Rebirth Target", {
+    Description = "Renacimiento automÃ¡tico hanggang maabot ang target.",
+    Default = false,
+    Callback = function(bool)
+        _G.targetRebirthActive = bool
+        
+        if bool then
+            if _G.infiniteRebirthActive and infiniteSwitch then
+                infiniteSwitch:Set(false)
+                _G.infiniteRebirthActive = false
+            end
+            
+            task.spawn(function()
+                while _G.targetRebirthActive and task.wait(0.1) do
+                    local currentRebirths = LocalPlayer.leaderstats.Rebirths.Value
+                    
+                    if currentRebirths >= targetRebirthValue then
+                        if targetSwitch and targetSwitch.Set then
+                            targetSwitch:Set(false)
+                        end
+                        _G.targetRebirthActive = false
+                        
+                        game:GetService("StarterGui"):SetCore("SendNotification", {
+                            Title = "Objetivo Alcanzado!",
+                            Text = "Naabot mo na ang " .. tostring(targetRebirthValue) .. " renacimientos",
+                            Duration = 5
+                        })
+                        
+                        break
+                    end
+                    
+                    game:GetService("ReplicatedStorage").rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                end
+            end)
+        end
+    end,
+})
+
+infiniteSwitch = toolsSection:AddToggle("Auto Rebirth (Infinite)", {
+    Description = "Renacimiento tuloy-tuloy nang walang tigil.",
+    Default = false,
+    Callback = function(bool)
+        _G.infiniteRebirthActive = bool
+        
+        if bool then
+            if _G.targetRebirthActive and targetSwitch then
+                targetSwitch:Set(false)
+                _G.targetRebirthActive = false
+            end
+            
+            task.spawn(function()
+                while _G.infiniteRebirthActive and task.wait(0.1) do
+                    game:GetService("ReplicatedStorage").rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                end
+            end)
+        end
+    end,
+})
+
+toolsSection:AddToggle("Auto Size 1", {
+    Description = "Itinatakda ang laki ng character sa 1 nang tuloy-tuloy.",
+    Default = false,
+    Callback = function(bool)
+        _G.autoSizeActive = bool
+        
+        if bool then
+            task.spawn(function()
+                while _G.autoSizeActive and task.wait() do
+                    game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", 1)
+                end
+            end)
+        end
+    end,
+})
+
+toolsSection:AddToggle("Auto Teleport to Muscle King", {
+    Description = "Tuloy-tuloy na pag-teleport sa Muscle King.",
+    Default = false,
+    Callback = function(bool)
+        _G.teleportActive = bool
+        
+        if bool then
+            task.spawn(function()
+                while _G.teleportActive and task.wait() do
+                    if LocalPlayer.Character then
+                        LocalPlayer.Character:MoveTo(Vector3.new(-8646, 17, -5738))
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+Library:Notify({
+	Title = "AutoFarm Finalized",
+	Content = "All tabs and functionalities loaded successfully.",
+	Duration = 6,
+})
+
+Window:SelectTab(1)
