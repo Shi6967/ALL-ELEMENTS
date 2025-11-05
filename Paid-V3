@@ -873,9 +873,9 @@ createRockFarmSwitch("Legend Gym Rock", 1000000)
 createRockFarmSwitch("Muscle King Gym Rock", 5000000)
 createRockFarmSwitch("Ancient Jungle Rock", 10000000)
 
-local toolsSection = toolsTab:AddSection("Rebirth Controls")
+local rebirthsSection = toolsTab:AddSection("Rebirth Controls")
 
-AddSection:AddTextBox("Rebirth Target", function(text)
+rebirthsSection:AddTextBox("Rebirth Target", function(text)
     local newValue = tonumber(text)
     if newValue and newValue > 0 then
         targetRebirthValue = newValue
@@ -897,7 +897,8 @@ end)
 
 local infiniteSwitch
 
-local targetSwitch = AddSection:AddToggle("Auto Rebirth Target", {
+local targetSwitch = rebirthsSection:AddToggle("AutoRebirthTarget", {
+    Title = "Auto Rebirth Target",
     Description = "Renacimiento automático hanggang maabot ang target.",
     Default = false,
     Callback = function(bool)
@@ -935,7 +936,8 @@ local targetSwitch = AddSection:AddToggle("Auto Rebirth Target", {
     end,
 })
 
-infiniteSwitch = AddSection:AddToggle("Auto Rebirth (Infinite)", {
+infiniteSwitch = rebirthsSection:AddToggle("infiniteRebirthActive", {
+    Title = "Auto Rebirth (Infinite)",
     Description = "Renacimiento tuloy-tuloy nang walang tigil.",
     Default = false,
     Callback = function(bool)
@@ -956,7 +958,8 @@ infiniteSwitch = AddSection:AddToggle("Auto Rebirth (Infinite)", {
     end,
 })
 
-AddSection:AddToggle("Auto Size 1", {
+rebirthsSection:AddToggle("AutoSizeToggle", {
+    Title = "Auto Size 1",
     Description = "Itinatakda ang laki ng character sa 1 nang tuloy-tuloy.",
     Default = false,
     Callback = function(bool)
@@ -972,7 +975,8 @@ AddSection:AddToggle("Auto Size 1", {
     end,
 })
 
-AddSection:AddToggle("Auto Teleport to Muscle King", {
+rebirthsSection:AddToggle("AutoTeleportToggle", {
+    Title = "Auto Teleport to Muscle King",
     Description = "Tuloy-tuloy na pag-teleport sa Muscle King.",
     Default = false,
     Callback = function(bool)
