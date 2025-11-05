@@ -181,7 +181,7 @@ local Window = Library:CreateWindow({
 	Acrylic = false,
 })
 
-local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "bolt" })
+local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "flame })
 local farmSection = autoFarmTab:AddSection("Farm OP")
 
 farmSection:AddToggle("OP_STRENGTH_TOGGLE", {
@@ -871,7 +871,7 @@ rebirthsSection:AddTextBox("Rebirth Target", function(text)
     end
 end)
 
-targetSwitch = rebirthsSection:AddSwitch("Auto Rebirth Target", function(bool)
+RebirthsSection = rebirthsSection:AddSwitch("Auto Rebirth Target", function(bool)
     _G.targetRebirthActive = bool
     
     if bool then
@@ -903,7 +903,7 @@ targetSwitch = rebirthsSection:AddSwitch("Auto Rebirth Target", function(bool)
     end
 end, "Renacimiento automático hasta alcanzar el objetivo")
 
-infiniteSwitch = rebirthsSection:AddSwitch("Auto Rebirth (Infinite)", function(bool)
+rebirthsSection = rebirthsSection:AddSwitch("Auto Rebirth (Infinite)", function(bool)
     _G.infiniteRebirthActive = bool
     
     if bool then
@@ -932,7 +932,7 @@ rebirthsSection:AddSwitch("Auto Size 1", function(bool)
     end
 end, "Establece el tamaño del personaje a 1 continuamente")
 
-teleportSwitch = rebirthsSection:AddSwitch("Auto Teleport to Muscle King", function(bool)
+rebirthsSection = rebirthsSection:AddSwitch("Auto Teleport to Muscle King", function(bool)
     _G.teleportActive = bool
     
     if bool then
