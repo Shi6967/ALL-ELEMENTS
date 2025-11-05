@@ -844,6 +844,8 @@ createRockFarmSwitch("Ancient Jungle Rock", 10000000)
 
 local toolsSection = toolsTab:AddSection("Rebirth Controls")
 
+toolsSection:AddLabel({Title = "Rebirth Controls"})
+
 toolsSection:AddTextBox("Rebirth Target", function(text)
     local newValue = tonumber(text)
     if newValue and newValue > 0 then
