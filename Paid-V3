@@ -862,12 +862,12 @@ local autoPunchNoAnim = false
 local targetDropdownItems = {}
 local availableTargets = {}
 
-local titleLabel = Killer:AddLabel("Equip Packs")
+local titleLabel = Killer:AddSlider("Equip Packs")
 titleLabel.TextSize = 14
 titleLabel.Font = Enum.Font.Merriweather 
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-local dropdown = Killer:AddDropdown("Select Pet", function(text)
+local dropdown = Killer:AddSlider("Select Pet", function(text)
     local petsFolder = game.Players.LocalPlayer.petsFolder
     for _, folder in pairs(petsFolder:GetChildren()) do
         if folder:IsA("Folder") then
@@ -896,8 +896,8 @@ local dropdown = Killer:AddDropdown("Select Pet", function(text)
     end
 end)
 
-local Wild_Wizard = dropdown:Add("Wild Wizard")
-local Powerful_Monster = dropdown:Add("Mighty Monster")
+local Wild_Wizard = Slider:Add("Wild Wizard")
+local Powerful_Monster = Slider:Add("Mighty Monster")
 
 Library:Notify({
 	Title = "AutoFarm Finalized",
