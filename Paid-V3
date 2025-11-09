@@ -1,9 +1,26 @@
--- ===================================
--- 🌟 PAID-V3 (Base) + UILIB (Merged) 🌟
--- ===================================
+-- Example_AllElements_FromURL.lua
+-- Loads the UI library from the provided URL and demonstrates every element.
+-- Place this as a LocalScript (StarterPlayerScripts) or execute in a local environment.
 
--- Initializing Services and Variables (From Paid-V3)
 local LIB_URL = "https://raw.githubusercontent.com/Shi6967/Ad-Link/refs/heads/main/Link"
+local ok, a, b, c = pcall(function()
+	local source = game:HttpGet(LIB_URL)
+	local fn = loadstring(source)
+	return fn()
+end)
+
+local Library, SaveManager, InterfaceManager
+if ok then
+	Library, SaveManager, InterfaceManager = a, b, c
+else
+	if getgenv and getgenv().Fluent then
+		Library = getgenv().Fluent
+		warn("Loaded library from getgenv().Fluent as fallback.")
+	else
+		error("Failed to load UI library from URL: " .. tostring(a))
+	end
+end
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Stats = game:GetService("Stats")
@@ -28,14 +45,6 @@ local RockRef = workspace:FindFirstChild(ROCK_NAME)
 local autoEatEnabled = false
 local darkSky
 
--- UILib Gifts/Eat Everything Logic Variables
-local itemList = {
-    "Watermelon", "Cake", "Pizza", "Donut", "Muffin",
-    "Burger", "Banana", "Candy", "IceCream"
-}
-local eatingRunning = false -- Controlled by the new 'Eat Everything' toggle
-
--- Paid-V3 Helper Functions (Keep all of them)
 local function getPing()
 	local success, ping = pcall(function()
 		return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
@@ -49,189 +58,120 @@ local function updateCharacterRefs()
 end
 
 local function eatProteinEgg()
-    if LocalPlayer:FindFirstChild("Backpack") then
-        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-            if item.Name == PROTEIN_EGG_NAME then
-                ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
-                break
-            end
-        end
-    end
-end
-
-local function unequipAllPets(a, c)
-    local f = c:FindFirstChild("petsFolder")
-    if not f then return end
-    for _, folder in pairs(f:GetChildren()) do
-        if folder:IsA("Folder") then
-            for _, pet in pairs(folder:GetChildren()) do
-                a.rEvents.equipPetEvent:FireServer("unequipPet", pet)
-            end
-        end
-    end
-    task.wait(0.1)
-end
-
-local function equipPetByName(a, c, name)
-    local folderPets = c:FindFirstChild("petsFolder")
-    if not folderPets then return end
-    for _, folder in pairs(folderPets:GetChildren()) do
-        if folder:IsA("Folder") then
-            for _, pet in pairs(folder:GetChildren()) do
-                if pet.Name == name then
-                    a.rEvents.equipPetEvent:FireServer("equipPet", pet)
-                end
-            end
-        end
-    end
-end
-
-local function getStrengthRequiredForRebirth(c)
-    local rebirths = c.leaderstats.Rebirths.Value
-    local baseStrength = 10000 + (5000 * rebirths)
-    
-    local g = c:FindFirstChild("ultimatesFolder")
-    local golden = 0
-    if g and g:FindFirstChild("Golden Rebirth") then
-        golden = g["Golden Rebirth"].Value
-    end
-    
-    if golden >= 1 and golden <= 5 then
-        baseStrength = baseStrength * (1 - golden * 0.1)
-    end
-    return math.floor(baseStrength)
-end
-
-local function hitRock()
-    if not RockRef or not RockRef.Parent then
-        RockRef = workspace:FindFirstChild(ROCK_NAME)
-    end
-    if RockRef and HumanoidRootPart then
-        HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
-        ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
-    end
-end
-
--- UILib Eat Everything Helper Functions (MERGED)
-local function formatEventName(itemName)
-    local parts = {}
-    for part in string.gmatch(itemName, "[A-Z][a-z]*") do
-        table.insert(parts, string.lower(part))
-    end
-    return table.concat(parts)
-end
-
-local function activateRandomItems(count)
-    local player = LocalPlayer
-    if not player or not player.Character or not player.Backpack or not player:FindFirstChild("muscleEvent") then return end
-
-    local shuffledItems = {}
-    for _, item in ipairs(itemList) do
-        table.insert(shuffledItems, item)
-    end
-    for i = #shuffledItems, 2, -1 do
-        local j = math.random(i)
-        shuffledItems[i], shuffledItems[j] = shuffledItems[j], shuffledItems[i]
-    end
-    for i = 1, math.min(count, #shuffledItems) do
-        local tool =
-            player.Character:FindFirstChild(shuffledItems[i]) or player.Backpack:FindFirstChild(shuffledItems[i])
-        if tool then
-            local eventName = formatEventName(shuffledItems[i])
-            player.muscleEvent:FireServer(eventName, tool)
-        end
-    end
-end
-
--- Paid-V3 Main Loops (Keep all of them)
-if not getgenv()._AutoRepFarmLoop then
-    getgenv()._AutoRepFarmLoop = true
-
-    task.spawn(function()
-        updateCharacterRefs()
-        
-        lastProteinEggTime = tick()
-        lastRockTime = tick()
-        
-        while true do
-            if getgenv()._AutoRepFarmEnabled then
-                local ping = getPing()
-                
-                if ping > MAX_PING then
-                    task.wait(5)
-                else
-                    if LocalPlayer:FindFirstChild("muscleEvent") then
-                        for i = 1, REPS_PER_CYCLE do
-                            LocalPlayer.muscleEvent:FireServer("rep")
-                            task.wait(REP_DELAY) 
-                        end
-                    end
-                    
-                    if not autoEatEnabled and tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
-                        eatProteinEgg()
-                        lastProteinEggTime = tick()
-                    end
-
-                    if tick() - lastRockTime >= ROCK_INTERVAL then
-                        hitRock()
-                        lastRockTime = tick()
-                    end
-                end
-            else
-                task.wait(1)
-            end
-        end
-    end)
-end
-
-task.spawn(function()
-    while true do
-        if autoEatEnabled then
-            eatProteinEgg()
-            task.wait(1800)
-        else
-            task.wait(1)
-        end
-    end
-end)
-
--- UILib Eat Everything Loop (MERGED)
-task.spawn(
-    function()
-        while true do
-            if eatingRunning then
-                activateRandomItems(4)
-                task.wait(0.5)
-            else
-                task.wait(0.5)
+    if LocalPlayer:FindFirstChild("Backpack") then
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if item.Name == PROTEIN_EGG_NAME then
+                ReplicatedStorage.rEvents.eatEvent:FireServer("eat", item)
+                break
             end
         end
     end
-)
-
-
--- Library Loading (Keep Paid-V3's robust loader)
-local ok, a, b, c = pcall(function()
-	local source = game:HttpGet(LIB_URL)
-	local fn = loadstring(source)
-	return fn()
-end)
-
-local Library, SaveManager, InterfaceManager
-if ok then
-	Library, SaveManager, InterfaceManager = a, b, c
-else
-	if getgenv and getgenv().Fluent then
-		Library = getgenv().Fluent
-		warn("Loaded library from getgenv().Fluent as fallback.")
-	else
-		error("Failed to load UI library from URL: " .. tostring(a))
-	end
 end
 
--- ===================================
--- 🎨 UI DEFINITION (Paid-V3 Base) 🎨
--- ===================================
+local function unequipAllPets(a, c)
+    local f = c:FindFirstChild("petsFolder")
+    if not f then return end
+    for _, folder in pairs(f:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                a.rEvents.equipPetEvent:FireServer("unequipPet", pet)
+            end
+        end
+    end
+    task.wait(0.1)
+end
+
+local function equipPetByName(a, c, name)
+    local folderPets = c:FindFirstChild("petsFolder")
+    if not folderPets then return end
+    for _, folder in pairs(folderPets:GetChildren()) do
+        if folder:IsA("Folder") then
+            for _, pet in pairs(folder:GetChildren()) do
+                if pet.Name == name then
+                    a.rEvents.equipPetEvent:FireServer("equipPet", pet)
+                end
+            end
+        end
+    end
+end
+
+local function getStrengthRequiredForRebirth(c)
+    local rebirths = c.leaderstats.Rebirths.Value
+    local baseStrength = 10000 + (5000 * rebirths)
+    
+    local g = c:FindFirstChild("ultimatesFolder")
+    local golden = 0
+    if g and g:FindFirstChild("Golden Rebirth") then
+        golden = g["Golden Rebirth"].Value
+    end
+    
+    if golden >= 1 and golden <= 5 then
+        baseStrength = baseStrength * (1 - golden * 0.1)
+    end
+    return math.floor(baseStrength)
+end
+
+local function hitRock()
+    if not RockRef or not RockRef.Parent then
+        RockRef = workspace:FindFirstChild(ROCK_NAME)
+    end
+    if RockRef and HumanoidRootPart then
+        HumanoidRootPart.CFrame = RockRef.CFrame * CFrame.new(0, 0, -5)
+        ReplicatedStorage.rEvents.hitEvent:FireServer("hit", RockRef)
+    end
+end
+
+if not getgenv()._AutoRepFarmLoop then
+    getgenv()._AutoRepFarmLoop = true
+
+    task.spawn(function()
+        updateCharacterRefs()
+        
+        lastProteinEggTime = tick()
+        lastRockTime = tick()
+        
+        while true do
+            if getgenv()._AutoRepFarmEnabled then
+                local ping = getPing()
+                
+                if ping > MAX_PING then
+                    task.wait(5)
+                else
+                    if LocalPlayer:FindFirstChild("muscleEvent") then
+                        for i = 1, REPS_PER_CYCLE do
+                            LocalPlayer.muscleEvent:FireServer("rep")
+                            task.wait(REP_DELAY) 
+                        end
+                    end
+                    
+                    if not autoEatEnabled and tick() - lastProteinEggTime >= PROTEIN_EGG_INTERVAL then
+                        eatProteinEgg()
+                        lastProteinEggTime = tick()
+                    end
+
+                    if tick() - lastRockTime >= ROCK_INTERVAL then
+                        hitRock()
+                        lastRockTime = tick()
+                    end
+                end
+            else
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+task.spawn(function()
+    while true do
+        if autoEatEnabled then
+            eatProteinEgg()
+            task.wait(1800)
+        else
+            task.wait(1)
+        end
+    end
+end)
+
 local Window = Library:CreateWindow({
 	Title = "SAILYNxSHI AutoFarm",
 	SubTitle = "Complete Grinding Suite",
@@ -241,7 +181,6 @@ local Window = Library:CreateWindow({
 	Acrylic = false,
 })
 
--- === 1. Farm OP Tab (Paid-V3 + UILib Strength) ===
 local autoFarmTab = Window:AddTab({ Title = "Farm OP", Icon = "flame" })
 local farmSection = autoFarmTab:AddSection("Farm OP")
 
@@ -263,7 +202,6 @@ farmSection:AddToggle("EAT_EGG_TOGGLE", {
 	end,
 })
 
--- Continue Paid-V3 AutoFarm features...
 farmSection:AddToggle("ANTI_LAG_TOGGLE", {
 	Title = "Anti Lag",
 	Description = "Tinatanggal ang GUIs, particles, lights, at nagse-set ng dark sky para sa max FPS.",
@@ -323,184 +261,184 @@ farmSection:AddToggle("ANTI_AFK_TOGGLE", {
 	Description = "Pinipigilan ang disconnection dahil sa inactivity (May kasamang Timer/FPS/Ping UI).",
 	Default = false,
 	Callback = function(state)
-        getgenv().AntiAfkExecuted = state
-        getgenv().zamanbaslaticisi = state
-        
-        local ColdUI = game.CoreGui:FindFirstChild("thisoneissocoldww")
-        
-        if state then
-            if ColdUI then ColdUI:Destroy() end 
-            
-            local thisoneissocoldww = Instance.new("ScreenGui", game.CoreGui)
-            local madebybloodofbatus = Instance.new("Frame", thisoneissocoldww)
-            local UICornerw = Instance.new("UICorner", madebybloodofbatus)
-            local DestroyButton = Instance.new("TextButton", madebybloodofbatus)
-            local uselesslabelone = Instance.new("TextLabel", madebybloodofbatus)
-            local timerlabel = Instance.new("TextLabel", madebybloodofbatus)
-            local uselesslabeltwo = Instance.new("TextLabel", madebybloodofbatus)
-            local fpslabel = Instance.new("TextLabel", madebybloodofbatus)
-            local uselesslabelthree = Instance.new("TextLabel", madebybloodofbatus)
-            local pinglabel = Instance.new("TextLabel", madebybloodofbatus)
-            local uselessframeone = Instance.new("Frame", madebybloodofbatus)
-            local UICornerww = Instance.new("UICorner", uselessframeone)
-            local uselesslabelfour = Instance.new("TextLabel", madebybloodofbatus)
+        getgenv().AntiAfkExecuted = state
+        getgenv().zamanbaslaticisi = state
+        
+        local ColdUI = game.CoreGui:FindFirstChild("thisoneissocoldww")
+        
+        if state then
+            if ColdUI then ColdUI:Destroy() end 
+            
+            local thisoneissocoldww = Instance.new("ScreenGui", game.CoreGui)
+            local madebybloodofbatus = Instance.new("Frame", thisoneissocoldww)
+            local UICornerw = Instance.new("UICorner", madebybloodofbatus)
+            local DestroyButton = Instance.new("TextButton", madebybloodofbatus)
+            local uselesslabelone = Instance.new("TextLabel", madebybloodofbatus)
+            local timerlabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselesslabeltwo = Instance.new("TextLabel", madebybloodofbatus)
+            local fpslabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselesslabelthree = Instance.new("TextLabel", madebybloodofbatus)
+            local pinglabel = Instance.new("TextLabel", madebybloodofbatus)
+            local uselessframeone = Instance.new("Frame", madebybloodofbatus)
+            local UICornerww = Instance.new("UICorner", uselessframeone)
+            local uselesslabelfour = Instance.new("TextLabel", madebybloodofbatus)
 
-            thisoneissocoldww.Name = "thisoneissocoldww"
-            thisoneissocoldww.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            thisoneissocoldww.Name = "thisoneissocoldww"
+            thisoneissocoldww.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-            madebybloodofbatus.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            madebybloodofbatus.Position = UDim2.new(0.085,0,0.13,0)
-            madebybloodofbatus.Size = UDim2.new(0,225,0,96)
+            madebybloodofbatus.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            madebybloodofbatus.Position = UDim2.new(0.085,0,0.13,0)
+            madebybloodofbatus.Size = UDim2.new(0,225,0,96)
 
-            DestroyButton.BackgroundTransparency = 1
-            DestroyButton.Position = UDim2.new(0.87,0,0.02,0)
-            DestroyButton.Size = UDim2.new(0,27,0,15)
-            DestroyButton.Font = Enum.Font.SourceSans
-            DestroyButton.Text = "X"
-            DestroyButton.TextColor3 = Color3.fromRGB(255,255,255)
-            DestroyButton.TextSize = 14
-            DestroyButton.MouseButton1Click:Connect(function()
-                getgenv().AntiAfkExecuted = false
-                getgenv().zamanbaslaticisi = false
-                task.wait(0.1)
-                thisoneissocoldww:Destroy()
-            end)
+            DestroyButton.BackgroundTransparency = 1
+            DestroyButton.Position = UDim2.new(0.87,0,0.02,0)
+            DestroyButton.Size = UDim2.new(0,27,0,15)
+            DestroyButton.Font = Enum.Font.SourceSans
+            DestroyButton.Text = "X"
+            DestroyButton.TextColor3 = Color3.fromRGB(255,255,255)
+            DestroyButton.TextSize = 14
+            DestroyButton.MouseButton1Click:Connect(function()
+                getgenv().AntiAfkExecuted = false
+                getgenv().zamanbaslaticisi = false
+                task.wait(0.1)
+                thisoneissocoldww:Destroy()
+            end)
 
-            uselesslabelone.BackgroundTransparency = 1
-            uselesslabelone.Position = UDim2.new(0.3,0,0,0)
-            uselesslabelone.Size = UDim2.new(0,95,0,24)
-            uselesslabelone.Font = Enum.Font.SourceSans
-            uselesslabelone.Text = "Anti Afk Script"
-            uselesslabelone.TextColor3 = Color3.fromRGB(255,255,255)
-            uselesslabelone.TextSize = 14
+            uselesslabelone.BackgroundTransparency = 1
+            uselesslabelone.Position = UDim2.new(0.3,0,0,0)
+            uselesslabelone.Size = UDim2.new(0,95,0,24)
+            uselesslabelone.Font = Enum.Font.SourceSans
+            uselesslabelone.Text = "Anti Afk Script"
+            uselesslabelone.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelone.TextSize = 14
 
-            timerlabel.BackgroundTransparency = 1
-            timerlabel.Position = UDim2.new(0.65,0,0.68,0)
-            timerlabel.Size = UDim2.new(0,60,0,24)
-            timerlabel.Font = Enum.Font.SourceSans
-            timerlabel.Text = "0:0:0"
-            timerlabel.TextColor3 = Color3.fromRGB(255,255,255)
-            timerlabel.TextSize = 14
+            timerlabel.BackgroundTransparency = 1
+            timerlabel.Position = UDim2.new(0.65,0,0.68,0)
+            timerlabel.Size = UDim2.new(0,60,0,24)
+            timerlabel.Font = Enum.Font.SourceSans
+            timerlabel.Text = "0:0:0"
+            timerlabel.TextColor3 = Color3.fromRGB(255,255,255)
+            timerlabel.TextSize = 14
 
-            uselesslabeltwo.BackgroundTransparency = 1
-            uselesslabeltwo.Position = UDim2.new(0.03,0,0.37,0)
-            uselesslabeltwo.Size = UDim2.new(0,29,0,24)
-            uselesslabeltwo.Font = Enum.Font.SourceSans
-            uselesslabeltwo.Text = "Ping: "
-            uselesslabeltwo.TextColor3 = Color3.fromRGB(255,255,255)
-            uselesslabeltwo.TextSize = 14
+            uselesslabeltwo.BackgroundTransparency = 1
+            uselesslabeltwo.Position = UDim2.new(0.03,0,0.37,0)
+            uselesslabeltwo.Size = UDim2.new(0,29,0,24)
+            uselesslabeltwo.Font = Enum.Font.SourceSans
+            uselesslabeltwo.Text = "Ping: "
+            uselesslabeltwo.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabeltwo.TextSize = 14
 
-            fpslabel.BackgroundTransparency = 1
-            fpslabel.Position = UDim2.new(0.72,0,0.35,0)
-            fpslabel.Size = UDim2.new(0,55,0,24)
-            fpslabel.Font = Enum.Font.SourceSans
-            fpslabel.Text = "0"
-            fpslabel.TextColor3 = Color3.fromRGB(255,255,255)
-            fpslabel.TextSize = 14
+            fpslabel.BackgroundTransparency = 1
+            fpslabel.Position = UDim2.new(0.72,0,0.35,0)
+            fpslabel.Size = UDim2.new(0,55,0,24)
+            fpslabel.Font = Enum.Font.SourceSans
+            fpslabel.Text = "0"
+            fpslabel.TextColor3 = Color3.fromRGB(255,255,255)
+            fpslabel.TextSize = 14
 
-            uselesslabelthree.BackgroundTransparency = 1
-            uselesslabelthree.Position = UDim2.new(0.5,0,0.35,0)
-            uselesslabelthree.Size = UDim2.new(0,26,0,24)
-            uselesslabelthree.Font = Enum.Font.SourceSans
-            uselesslabelthree.Text = "Fps: "
-            uselesslabelthree.TextColor3 = Color3.fromRGB(255,255,255)
-            uselesslabelthree.TextSize = 14
+            uselesslabelthree.BackgroundTransparency = 1
+            uselesslabelthree.Position = UDim2.new(0.5,0,0.35,0)
+            uselesslabelthree.Size = UDim2.new(0,26,0,24)
+            uselesslabelthree.Font = Enum.Font.SourceSans
+            uselesslabelthree.Text = "Fps: "
+            uselesslabelthree.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelthree.TextSize = 14
 
-            pinglabel.BackgroundTransparency = 1
-            pinglabel.Position = UDim2.new(0.2,0,0.37,0)
-            pinglabel.Size = UDim2.new(0,55,0,24)
-            pinglabel.Font = Enum.Font.SourceSans
-            pinglabel.Text = "0"
-            pinglabel.TextColor3 = Color3.fromRGB(255,255,255)
-            pinglabel.TextSize = 14
-            pinglabel.TextWrapped = true
+            pinglabel.BackgroundTransparency = 1
+            pinglabel.Position = UDim2.new(0.2,0,0.37,0)
+            pinglabel.Size = UDim2.new(0,55,0,24)
+            pinglabel.Font = Enum.Font.SourceSans
+            pinglabel.Text = "0"
+            pinglabel.TextColor3 = Color3.fromRGB(255,255,255)
+            pinglabel.TextSize = 14
+            pinglabel.TextWrapped = true
 
-            uselessframeone.BackgroundColor3 = Color3.fromRGB(255,255,255)
-            uselessframeone.Position = UDim2.new(0.004,0,0.24,0)
-            uselessframeone.Size = UDim2.new(0,224,0,5)
-            UICornerww.CornerRadius = UDim.new(0,50)
+            uselessframeone.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            uselessframeone.Position = UDim2.new(0.004,0,0.24,0)
+            uselessframeone.Size = UDim2.new(0,224,0,5)
+            UICornerww.CornerRadius = UDim.new(0,50)
 
-            uselesslabelfour.BackgroundTransparency = 1
-            uselesslabelfour.Position = UDim2.new(0.05,0,0.81,0)
-            uselesslabelfour.Size = UDim2.new(0,95,0,12)
-            uselesslabelfour.Font = Enum.Font.SourceSans
-            uselesslabelfour.Text = "Anti-Afk Auto Enabled"
-            uselesslabelfour.TextColor3 = Color3.fromRGB(255,255,255)
-            uselesslabelfour.TextSize = 14
+            uselesslabelfour.BackgroundTransparency = 1
+            uselesslabelfour.Position = UDim2.new(0.05,0,0.81,0)
+            uselesslabelfour.Size = UDim2.new(0,95,0,12)
+            uselesslabelfour.Font = Enum.Font.SourceSans
+            uselesslabelfour.Text = "Anti-Afk Auto Enabled"
+            uselesslabelfour.TextColor3 = Color3.fromRGB(255,255,255)
+            uselesslabelfour.TextSize = 14
 
-            local Drag = madebybloodofbatus
-            local gsTween = game:GetService("TweenService")
-            local UserInputService = game:GetService("UserInputService")
-            local dragging, dragInput, dragStart, startPos
-            local function update(input)
-                local delta = input.Position - dragStart
-                local dragTime = 0.04
-                local SmoothDrag = {}
-                SmoothDrag.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
-                gsTween:Create(Drag,TweenInfo.new(dragTime,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),SmoothDrag):Play()
-            end
-            Drag.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = true
-                    dragStart = input.Position
-                    startPos = Drag.Position
-                    input.Changed:Connect(function()
-                        if input.UserInputState == Enum.UserInputState.End then dragging = false end
-                    end)
-                end
-            end)
-            Drag.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                    dragInput = input
-                end
-            end)
-            UserInputService.InputChanged:Connect(function(input)
-                if input == dragInput and dragging then update(input) end
-            end)
+            local Drag = madebybloodofbatus
+            local gsTween = game:GetService("TweenService")
+            local UserInputService = game:GetService("UserInputService")
+            local dragging, dragInput, dragStart, startPos
+            local function update(input)
+                local delta = input.Position - dragStart
+                local dragTime = 0.04
+                local SmoothDrag = {}
+                SmoothDrag.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+                gsTween:Create(Drag,TweenInfo.new(dragTime,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),SmoothDrag):Play()
+            end
+            Drag.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = Drag.Position
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then dragging = false end
+                    end)
+                end
+            end)
+            Drag.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+            UserInputService.InputChanged:Connect(function(input)
+                if input == dragInput and dragging then update(input) end
+            end)
 
-            local vu = game:GetService('VirtualUser')
-            game.Players.LocalPlayer.Idled:Connect(function()
-                if getgenv().AntiAfkExecuted then
-                    vu:CaptureController()
-                    vu:ClickButton2(Vector2.new())
-                end
-            end)
+            local vu = game:GetService('VirtualUser')
+            game.Players.LocalPlayer.Idled:Connect(function()
+                if getgenv().AntiAfkExecuted then
+                    vu:CaptureController()
+                    vu:ClickButton2(Vector2.new())
+                end
+            end)
 
-            local sec = tick()
-            local FPS = {}
-            RunService.RenderStepped:Connect(function()
-                if getgenv().AntiAfkExecuted then
-                    local fr = tick()
-                    for i=#FPS,1,-1 do FPS[i+1] = (FPS[i]>=fr-1) and FPS[i] or nil end
-                    FPS[1] = fr
-                    local fps = math.floor((tick()-sec>=1 and #FPS) or (#FPS/(tick()-sec)))
-                    fpslabel.Text = fps
-                end
-            end)
+            local sec = tick()
+            local FPS = {}
+            RunService.RenderStepped:Connect(function()
+                if getgenv().AntiAfkExecuted then
+                    local fr = tick()
+                    for i=#FPS,1,-1 do FPS[i+1] = (FPS[i]>=fr-1) and FPS[i] or nil end
+                    FPS[1] = fr
+                    local fps = math.floor((tick()-sec>=1 and #FPS) or (#FPS/(tick()-sec)))
+                    fpslabel.Text = fps
+                end
+            end)
 
-            task.spawn(function()
-                while getgenv().AntiAfkExecuted do
-                    task.wait(1)
-                    local ping = math.floor(tonumber(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()))
-                    pinglabel.Text = ping
-                end
-            end)
+            task.spawn(function()
+                while getgenv().AntiAfkExecuted do
+                    task.wait(1)
+                    local ping = math.floor(tonumber(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()))
+                    pinglabel.Text = ping
+                end
+            end)
 
-            local saniye, dakika, saat = 0,0,0
-            task.spawn(function()
-                while getgenv().zamanbaslaticisi do
-                    saniye = saniye + 1
-                    task.wait(1)
-                    if saniye>=60 then saniye=0;dakika=dakika+1 end
-                    if dakika>=60 then dakika=0;saat=saat+1 end
-                    timerlabel.Text = saat..":"..dakika..":"..saniye
-                end
-            end)
-        else
-            if ColdUI then
-                ColdUI:Destroy()
-            end
-        end
+            local saniye, dakika, saat = 0,0,0
+            task.spawn(function()
+                while getgenv().zamanbaslaticisi do
+                    saniye = saniye + 1
+                    task.wait(1)
+                    if saniye>=60 then saniye=0;dakika=dakika+1 end
+                    if dakika>=60 then dakika=0;saat=saat+1 end
+                    timerlabel.Text = saat..":"..dakika..":"..saniye
+                end
+            end)
+        else
+            if ColdUI then
+                ColdUI:Destroy()
+            end
+        end
 	end,
 })
 
@@ -570,22 +508,6 @@ farmSection:AddButton({
 })
 
 
--- === 2. Gifts Tab (NEW - From UILib) ===
-local giftTab = Window:AddTab({ Title = "Gifts", Icon = "gift" })
-local giftSection = giftTab:AddSection("Food Utility")
-
-giftSection:AddToggle("EAT_EVERYTHING_TOGGLE", {
-    Title = "Eat Everything (Continuous)",
-    Description = "Awtomatikong kakain ng lahat ng random na pagkain (Watermelon, Cake, atbp.) na nasa inventory.",
-    Default = false,
-    Callback = function(state)
-        -- Toggled the external loop controlled by 'eatingRunning'
-        eatingRunning = state 
-    end,
-})
-
-
--- === 3. Rebirth Tab (Paid-V3) ===
 local rebirthTab = Window:AddTab({ Title = "Rebirth", Icon = "sparkle" })
 local rebirthSection = rebirthTab:AddSection("OP Rebirth")
 
@@ -639,7 +561,7 @@ rebirthSection:AddToggle("LOCK_POSITION", {
 	Callback = function(Value)
 		if Value then
 			local char = LocalPlayer.Character
-            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 			local currentPos = char.HumanoidRootPart.CFrame
 			getgenv().posLock = RunService.Heartbeat:Connect(function()
 				if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -714,62 +636,61 @@ rebirthSection:AddButton({
 	end,
 })
 
--- === 4. Tools Tab (Paid-V3) ===
 local toolsTab = Window:AddTab({ Title = "Tools", Icon = "gear" })
 local toolsSection = toolsTab:AddSection("Auto Tools")
 
- toolsSection:AddButton({
-    Title = "Gamepass AutoLift",
-    Description = "Lokal na ia-unlock lahat ng gamepasses na makikita sa ReplicatedStorage.",
-    Callback = function()
-        local gamepassFolder = game:GetService("ReplicatedStorage").gamepassIds
-        local player = game:GetService("Players").LocalPlayer
-        
-        if not player:FindFirstChild("ownedGamepasses") then
-            local folder = Instance.new("Folder")
-            folder.Name = "ownedGamepasses"
-            folder.Parent = player
-        end
-        
-        for _, gamepass in pairs(gamepassFolder:GetChildren()) do
-            local value = Instance.new("IntValue")
-            value.Name = gamepass.Name
-            value.Value = gamepass.Value
-            value.Parent = player.ownedGamepasses
-        end
-    end,
+ toolsSection:AddButton({
+    Title = "Gamepass AutoLift",
+    Description = "Lokal na ia-unlock lahat ng gamepasses na makikita sa ReplicatedStorage.",
+    Callback = function()
+        local gamepassFolder = game:GetService("ReplicatedStorage").gamepassIds
+        local player = game:GetService("Players").LocalPlayer
+        
+        if not player:FindFirstChild("ownedGamepasses") then
+            local folder = Instance.new("Folder")
+            folder.Name = "ownedGamepasses"
+            folder.Parent = player
+        end
+        
+        for _, gamepass in pairs(gamepassFolder:GetChildren()) do
+            local value = Instance.new("IntValue")
+            value.Name = gamepass.Name
+            value.Value = gamepass.Value
+            value.Parent = player.ownedGamepasses
+        end
+    end,
 })
 
 local function createAutoToolSwitch(toolName, globalVar)
-    toolsSection:AddToggle(globalVar, {
-        Title = "Auto " .. toolName,
-        Description = "I-e-equip at auto-rep sa '" .. toolName .. "' tool.",
-        Default = false,
-        Callback = function(Value)
-            _G[globalVar] = Value
-            local character = LocalPlayer.Character
+    toolsSection:AddToggle(globalVar, {
+        Title = "Auto " .. toolName,
+        Description = "I-e-equip at auto-rep sa '" .. toolName .. "' tool.",
+        Default = false,
+        Callback = function(Value)
+            _G[globalVar] = Value
+            local character = LocalPlayer.Character
 
-            if Value then
-                local tool = LocalPlayer.Backpack:FindFirstChild(toolName)
-                if tool and character then
-                    character.Humanoid:EquipTool(tool)
-                end
-            else
-                local equipped = character and character:FindFirstChild(toolName)
-                if equipped then
-                    equipped.Parent = LocalPlayer.Backpack
-                end
-            end
-            
-            task.spawn(function()
-                while _G[globalVar] do
-                    if not _G[globalVar] then break end
-                    LocalPlayer.muscleEvent:FireServer("rep")
-                    task.wait(0.1)
-                end
-            end)
-        end,
-    })
+            if Value then
+                local tool = LocalPlayer.Backpack:FindFirstChild(toolName)
+                if tool and character then
+                    character.Humanoid:EquipTool(tool)
+                end
+            else
+                local equipped = character and character:FindFirstChild(toolName)
+                if equipped then
+                    equipped.Parent = LocalPlayer.Backpack
+                end
+            end
+            
+            task.spawn(function()
+                while _G[globalVar] do
+                    if not _G[globalVar] then break end
+                    LocalPlayer.muscleEvent:FireServer("rep")
+                    task.wait(0.1)
+                end
+            end)
+        end,
+    })
 end
 
 createAutoToolSwitch("Weight", "AutoWeight")
@@ -779,186 +700,269 @@ createAutoToolSwitch("Situps", "AutoSitups")
 
 
 toolsSection:AddToggle("AutoPunchToggle", {
-    Title = "Auto Punch",
-    Description = "Awtomatikong magpapadala ng fast punch sa pamamagitan ng pag-reset ng attack time.",
-    Default = false,
-    Callback = function(Value)
-        _G.fastHitActive = Value
-        local character = LocalPlayer.Character
-        local backpack = LocalPlayer.Backpack
+    Title = "Auto Punch",
+    Description = "Awtomatikong magpapadala ng fast punch sa pamamagitan ng pag-reset ng attack time.",
+    Default = false,
+    Callback = function(Value)
+        _G.fastHitActive = Value
+        local character = LocalPlayer.Character
+        local backpack = LocalPlayer.Backpack
 
-        if Value then
-            task.spawn(function()
-                while _G.fastHitActive do
-                    if not _G.fastHitActive then break end
-                    
-                    local punch = backpack:FindFirstChild("Punch")
-                    if punch then
-                        punch.Parent = character
-                        if punch:FindFirstChild("attackTime") then
-                            punch.attackTime.Value = 0
-                        end
-                    end
-                    task.wait(0.1)
-                end
-            end)
-            
-            task.spawn(function()
-                while _G.fastHitActive do
-                    if not _G.fastHitActive then break end
-                    
-                    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
-                    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
-                    
-                    local punchTool = character and character:FindFirstChild("Punch")
-                    if punchTool then
-                        punchTool:Activate()
-                    end
-                    task.wait()
-                end
-            end)
-        else
-            local equipped = character and character:FindFirstChild("Punch")
-            if equipped then
-                equipped.Parent = backpack
-            end
-        end
-    end,
+        if Value then
+            task.spawn(function()
+                while _G.fastHitActive do
+                    if not _G.fastHitActive then break end
+                    
+                    local punch = backpack:FindFirstChild("Punch")
+                    if punch then
+                        punch.Parent = character
+                        if punch:FindFirstChild("attackTime") then
+                            punch.attackTime.Value = 0
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+            
+            task.spawn(function()
+                while _G.fastHitActive do
+                    if not _G.fastHitActive then break end
+                    
+                    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+                    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+                    
+                    local punchTool = character and character:FindFirstChild("Punch")
+                    if punchTool then
+                        punchTool:Activate()
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            local equipped = character and character:FindFirstChild("Punch")
+            if equipped then
+                equipped.Parent = backpack
+            end
+        end
+    end,
 })
 
 toolsSection:AddToggle("FastToolsToggle", {
-    Title = "Fast Tools",
-    Description = "Ise-set ang tool cooldowns (repTime/attackTime) sa 0 para sa instant use.",
-    Default = false,
-    Callback = function(Value)
-        _G.FastTools = Value
-        
-        local toolSettings = {
-            {"Punch", "attackTime", Value and 0 or 0.01},
-            {"Ground Slam", "attackTime", Value and 0 or 6},
-            {"Stomp", "attackTime", Value and 0 or 7},
-            {"Handstands", "repTime", Value and 0 or 1},
-            {"Pushups", "repTime", Value and 0 or 1},
-            {"Weight", "repTime", Value and 0 or 1},
-            {"Situps", "repTime", Value and 0 or 1}
-        }
-        
-        local backpack = LocalPlayer.Backpack
-        local character = LocalPlayer.Character
-        
-        for _, toolInfo in ipairs(toolSettings) do
-            local toolName = toolInfo[1]
-            local valueName = toolInfo[2]
-            local targetValue = toolInfo[3]
+    Title = "Fast Tools",
+    Description = "Ise-set ang tool cooldowns (repTime/attackTime) sa 0 para sa instant use.",
+    Default = false,
+    Callback = function(Value)
+        _G.FastTools = Value
+        
+        local toolSettings = {
+            {"Punch", "attackTime", Value and 0 or 0.01},
+            {"Ground Slam", "attackTime", Value and 0 or 6},
+            {"Stomp", "attackTime", Value and 0 or 7},
+            {"Handstands", "repTime", Value and 0 or 1},
+            {"Pushups", "repTime", Value and 0 or 1},
+            {"Weight", "repTime", Value and 0 or 1},
+            {"Situps", "repTime", Value and 0 or 1}
+        }
+        
+        local backpack = LocalPlayer.Backpack
+        local character = LocalPlayer.Character
+        
+        for _, toolInfo in ipairs(toolSettings) do
+            local toolName = toolInfo[1]
+            local valueName = toolInfo[2]
+            local targetValue = toolInfo[3]
 
-            local toolInBackpack = backpack:FindFirstChild(toolName)
-            if toolInBackpack and toolInBackpack:FindFirstChild(valueName) then
-                toolInBackpack[valueName].Value = targetValue
-            end
+            local toolInBackpack = backpack:FindFirstChild(toolName)
+            if toolInBackpack and toolInBackpack:FindFirstChild(valueName) then
+                toolInBackpack[valueName].Value = targetValue
+            end
 
-            local equippedTool = character and character:FindFirstChild(toolName)
-            if equippedTool and equippedTool:FindFirstChild(valueName) then
-                equippedTool[valueName].Value = targetValue
-            end
-        end
-    end,
+            local equippedTool = character and character:FindFirstChild(toolName)
+            if equippedTool and equippedTool:FindFirstChild(valueName) then
+                equippedTool[valueName].Value = targetValue
+            end
+        end
+    end,
 })
 
 local toolSection = toolsTab:AddSection("Rock Farming")
 
 local function gettool()
-    local punchTool = LocalPlayer.Backpack:FindFirstChild("Punch")
-    if punchTool and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid:EquipTool(punchTool)
-    end
-    
-    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
-    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
+    local punchTool = LocalPlayer.Backpack:FindFirstChild("Punch")
+    if punchTool and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:EquipTool(punchTool)
+    end
+    
+    LocalPlayer.muscleEvent:FireServer("punch", "leftHand")
+    LocalPlayer.muscleEvent:FireServer("punch", "rightHand")
 end
 
 local function createRockFarmSwitch(title, neededDurability)
-    local globalSwitchName = "Farm" .. title:gsub(" ", "") 
-    
-    toolSection:AddToggle(globalSwitchName, {
-        Title = "Farm " .. title,
-        Description = "Awtomatikong magba-farm ng " .. title .. ".",
-        Default = false,
-        Callback = function(bool)
-            _G.autoFarm = bool
-            
-            if bool then
-                task.spawn(function()
-                    while _G.autoFarm do
-                        task.wait()
-                        if LocalPlayer.Durability.Value >= neededDurability then
-                            for i, v in pairs(game:GetService("Workspace").machinesFolder:GetDescendants()) do
-                                if v.Name == "neededDurability" and v.Value == neededDurability then 
-                                    local rock = v.Parent:FindFirstChild("Rock")
-                                    local char = LocalPlayer.Character
-                                    
-                                    if rock and char and char:FindFirstChild("LeftHand") and char:FindFirstChild("RightHand") then
-                                        local rightHand = char.RightHand
-                                        local leftHand = char.LeftHand
-                                        
-                                        firetouchinterest(rock, rightHand, 0)
-                                        firetouchinterest(rock, rightHand, 1)
-                                        firetouchinterest(rock, leftHand, 0)
-                                        firetouchinterest(rock, leftHand, 1)
-                                        
-                                        gettool()
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
-            end
-        end,
-    })
+    local globalSwitchName = "Farm" .. title:gsub(" ", "") 
+    
+    toolSection:AddToggle(globalSwitchName, {
+        Title = "Farm " .. title,
+        Description = "Awtomatikong magba-farm ng " .. title .. ".",
+        Default = false,
+        Callback = function(bool)
+            _G.autoFarm = bool
+            
+            if bool then
+                task.spawn(function()
+                    while _G.autoFarm do
+                        task.wait()
+                        if LocalPlayer.Durability.Value >= neededDurability then
+                            for i, v in pairs(game:GetService("Workspace").machinesFolder:GetDescendants()) do
+                                if v.Name == "neededDurability" and v.Value == neededDurability then 
+                                    local rock = v.Parent:FindFirstChild("Rock")
+                                    local char = LocalPlayer.Character
+                                    
+                                    if rock and char and char:FindFirstChild("LeftHand") and char:FindFirstChild("RightHand") then
+                                        local rightHand = char.RightHand
+                                        local leftHand = char.LeftHand
+                                        
+                                        firetouchinterest(rock, rightHand, 0)
+                                        firetouchinterest(rock, rightHand, 1)
+                                        firetouchinterest(rock, leftHand, 0)
+                                        firetouchinterest(rock, leftHand, 1)
+                                        
+                                        gettool()
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end,
+    })
 end
 
 createRockFarmSwitch("Legend Gym Rock", 1000000)
 createRockFarmSwitch("Muscle King Gym Rock", 5000000)
 createRockFarmSwitch("Ancient Jungle Rock", 10000000)
 
-local toolsSectionRebirth = toolsTab:AddSection("Rebirth Controls")
+local toolsSection = toolsTab:AddSection("Rebirth Controls")
 
-toolsSectionRebirth:AddTextBox("Rebirth Target", function(text)
-    local newValue = tonumber(text)
-    if newValue and newValue > 0 then
-        targetRebirthValue = newValue
-        updateStats()
-        
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Objetivo Actualizado",
-            Text = "Nuevo objetivo: " .. tostring(targetRebirthValue) .. " renacimientos",
-            Duration = 0
-        })
-    else
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Entrada InvÃ¡lida",
-            Text = "Por favor ingresa un nÃºmero vÃ¡lido mayor que 0",
-            Duration = 0
-        })
-    end
+toolsSection:AddTextBox("Rebirth Target", function(text)
+    local newValue = tonumber(text)
+    if newValue and newValue > 0 then
+        targetRebirthValue = newValue
+        updateStats()
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Objetivo Actualizado",
+            Text = "Nuevo objetivo: " .. tostring(targetRebirthValue) .. " renacimientos",
+            Duration = 0
+        })
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Entrada InvÃƒÂ¡lida",
+            Text = "Por favor ingresa un nÃƒÂºmero vÃƒÂ¡lido mayor que 0",
+            Duration = 0
+        })
+    end
 end)
 
 local infiniteSwitch
 
-local targetSwitch = toolsSectionRebirth:AddToggle("Auto Rebirth Target", {
-    Description = "Renacimiento automÃ¡tico hanggang maabot ang target.",
-    Default = false,
-    Callback = function(bool)
-        _G.targetRebirthActive = bool
-        
-        if bool then
-            if _G.infiniteRebirthActive and infiniteSwitch then
-                infiniteSwitch:Set(false)
-                _G.infiniteRebirthActive = false
-            end
-            
-            task.spawn(function()
-                while _G.targetRebirthActive and task.wait(0.1) do
-                    local currentRebirths = LocalPlayer.leaderstats.Rebirths.Value
-                    
-                    if currentRebirth
+local targetSwitch = toolsSection:AddToggle("Auto Rebirth Target", {
+    Description = "Renacimiento automÃƒÂ¡tico hanggang maabot ang target.",
+    Default = false,
+    Callback = function(bool)
+        _G.targetRebirthActive = bool
+        
+        if bool then
+            if _G.infiniteRebirthActive and infiniteSwitch then
+                infiniteSwitch:Set(false)
+                _G.infiniteRebirthActive = false
+            end
+            
+            task.spawn(function()
+                while _G.targetRebirthActive and task.wait(0.1) do
+                    local currentRebirths = LocalPlayer.leaderstats.Rebirths.Value
+                    
+                    if currentRebirths >= targetRebirthValue then
+                        if targetSwitch and targetSwitch.Set then
+                            targetSwitch:Set(false)
+                        end
+                        _G.targetRebirthActive = false
+                        
+                        game:GetService("StarterGui"):SetCore("SendNotification", {
+                            Title = "Objetivo Alcanzado!",
+                            Text = "Naabot mo na ang " .. tostring(targetRebirthValue) .. " renacimientos",
+                            Duration = 5
+                        })
+                        
+                        break
+                    end
+                    
+                    game:GetService("ReplicatedStorage").rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                end
+            end)
+        end
+    end,
+})
+
+infiniteSwitch = toolsSection:AddToggle("Auto Rebirth (Infinite)", {
+    Description = "Renacimiento tuloy-tuloy nang walang tigil.",
+    Default = false,
+    Callback = function(bool)
+        _G.infiniteRebirthActive = bool
+        
+        if bool then
+            if _G.targetRebirthActive and targetSwitch then
+                targetSwitch:Set(false)
+                _G.targetRebirthActive = false
+            end
+            
+            task.spawn(function()
+                while _G.infiniteRebirthActive and task.wait(0.1) do
+                    game:GetService("ReplicatedStorage").rEvents.rebirthRemote:InvokeServer("rebirthRequest")
+                end
+            end)
+        end
+    end,
+})
+
+toolsSection:AddToggle("Auto Size 1", {
+    Description = "Itinatakda ang laki ng character sa 1 nang tuloy-tuloy.",
+    Default = false,
+    Callback = function(bool)
+        _G.autoSizeActive = bool
+        
+        if bool then
+            task.spawn(function()
+                while _G.autoSizeActive and task.wait() do
+                    game:GetService("ReplicatedStorage").rEvents.changeSpeedSizeRemote:InvokeServer("changeSize", 1)
+                end
+            end)
+        end
+    end,
+})
+
+toolsSection:AddToggle("Auto Teleport to Muscle King", {
+    Description = "Tuloy-tuloy na pag-teleport sa Muscle King.",
+    Default = false,
+    Callback = function(bool)
+        _G.teleportActive = bool
+        
+        if bool then
+            task.spawn(function()
+                while _G.teleportActive and task.wait() do
+                    if LocalPlayer.Character then
+                        LocalPlayer.Character:MoveTo(Vector3.new(-8646, 17, -5738))
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+Library:Notify({
+	Title = "AutoFarm Finalized",
+	Content = "All tabs and functionalities loaded successfully.",
+	Duration = 6,
+})
+
+Window:SelectTab(1)
