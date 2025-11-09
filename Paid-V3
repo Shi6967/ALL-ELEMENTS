@@ -1,15 +1,24 @@
+-- Example_AllElements_FromURL.lua
+-- Loads the UI library from the provided URL and demonstrates every element.
+-- Place this as a LocalScript (StarterPlayerScripts) or execute in a local environment.
+
 local LIB_URL = "loadstring(game:HttpGet("https://raw.githubusercontent.com/Shi6967/walakangbitaw/refs/heads/main/Paid-V3",true))()"
 
+-- Attempt to load the remote library
 local ok, a, b, c = pcall(function()
+	-- game:HttpGet may require HttpEnabled in Studio; use what the environment supports
 	local source = game:HttpGet(LIB_URL)
 	local fn = loadstring(source)
 	return fn()
 end)
 
 local Library, SaveManager, InterfaceManager
+
 if ok then
+	-- pcall returned true followed by values returned by the module
 	Library, SaveManager, InterfaceManager = a, b, c
 else
+	-- Fallback: try getgenv if module was already loaded there
 	if getgenv and getgenv().Fluent then
 		Library = getgenv().Fluent
 		warn("Loaded library from getgenv().Fluent as fallback.")
